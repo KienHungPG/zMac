@@ -500,13 +500,27 @@
       notch.classList.toggle('open', v);
       screen.classList.toggle('notch-open', v);
     }
-    function charge() {
+    // Một thông báo thu gọn tại một lúc: sạc, âm lượng, thẻ pin yếu.
+    let flashT = 0;
+    function flash(cls, ms) {
       setOpen(false);
-      notch.classList.add('charging');
-      d.later(2800, () => notch.classList.remove('charging'));
+      clearTimeout(flashT);
+      notch.classList.remove('charging', 'hud', 'alert');
+      notch.classList.add(cls);
+      flashT = setTimeout(() => notch.classList.remove(cls), ms);
+    }
+    const charge = () => flash('charging', 2800);
+    const lowBattery = () => flash('alert', 3400);
+    let vol = 8;
+    function volumeUp() {
+      vol = vol >= 16 ? 8 : vol + 1;
+      $('#n-lvl').style.width = (vol / 16) * 100 + '%';
+      $('#n-lvl-t').textContent = Math.round((vol / 16) * 100) + '%';
+      flash('hud', 1600);
     }
     const d = makeDemo({
-      script: () => [[900, () => setOpen(true)], [3400, () => setOpen(false)], [900, charge], [3800, () => {}]],
+      script: () => [[900, () => setOpen(true)], [3400, () => setOpen(false)], [900, charge], [3600, volumeUp], [380, volumeUp],
+        [380, volumeUp], [2000, lowBattery], [4200, () => {}]],
       on() {
         notch.tabIndex = 0;
         renderNp();
@@ -515,12 +529,15 @@
           pos += 1;
           if (pos >= TRACKS[track][2]) { track = (track + 1) % TRACKS.length; pos = 0; }
           renderNp();
+          if (pos % 3 === 0 && notch.classList.contains('m-lyrics')) LY.step();
         });
       },
       off() {
         clearTimeout(hoverT);
+        clearTimeout(flashT);
         setOpen(false);
-        notch.classList.remove('charging');
+        notch.classList.remove('charging', 'hud', 'alert', 'm-lyrics');
+        syncLyBtns();
         notch.tabIndex = -1;
       },
     });
@@ -549,6 +566,8 @@
     });
     $('#n-toggle').addEventListener('click', () => { d.touch(); setOpen(!isOpen()); });
     $('#n-plug').addEventListener('click', () => { d.touch(); charge(); });
+    $('#n-vol').addEventListener('click', () => { d.touch(); volumeUp(); });
+    $('#n-low').addEventListener('click', () => { d.touch(); lowBattery(); });
     $('#np-play').addEventListener('click', () => { d.touch(); playing = !playing; renderNp(); });
     $('#np-next').addEventListener('click', () => { d.touch(); track = (track + 1) % TRACKS.length; pos = 0; renderNp(); });
     $('#np-prev').addEventListener('click', () => {
@@ -558,6 +577,286 @@
       renderNp();
     });
     renderNp();
+    return d;
+  })();
+
+  const notchEl = $('#notch');
+
+  // ---------- Lịch (cột phải của notch khi mở): 7 ngày quanh hôm nay ----------
+  function renderCal() {
+    const now = new Date();
+    const names = lang === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const cells = [];
+    for (let k = -3; k <= 3; k++) {
+      const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
+      const c = document.createElement('span');
+      if (k === 0) c.classList.add('today');
+      if (k === -1 || k === 0 || k === 2) c.classList.add('busy');
+      const b = document.createElement('b');
+      b.textContent = day.getDate();
+      c.append(names[day.getDay()], b, document.createElement('i'));
+      cells.push(c);
+    }
+    $('#cal-w').replaceChildren(...cells);
+    $('#cal-month').textContent = lang === 'en'
+      ? now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      : `Tháng ${now.getMonth() + 1}, ${now.getFullYear()}`;
+  }
+  renderCal();
+  langHooks.push(renderCal);
+
+  // ---------- Lời bài hát: dòng đang hát sáng lên, cả khối trượt lên ----------
+  const LY = (() => {
+    const VI = ['Đèn đường vàng như tơ trên phố vắng', 'Gió đưa câu hát qua những mái hiên', 'Mình đi qua nhau như hai bến cảng',
+      'Sóng vẫn hát về một nơi bình yên', 'Và ta lại về bên bến cũ', 'Nghe con thuyền kể chuyện đêm qua', '♪'];
+    const EN = ['Street lights spin gold on the empty road', 'The wind carries a song past the eaves', 'We drift by like two quiet harbors',
+      'The waves still sing of a peaceful place', 'And we come back to the old pier', 'To hear the boat tell of last night', '♪'];
+    const box = $('#ly-in');
+    let i = 1;
+    function mark() {
+      Array.from(box.children).forEach((p, j) => { p.className = j === i ? 'cur' : j < i ? 'past' : ''; });
+      box.style.transform = `translateY(${-Math.max(i - 1, 0) * 1.55}em)`;
+    }
+    function render() {
+      box.replaceChildren(...(lang === 'en' ? EN : VI).map((t) => {
+        const p = document.createElement('p');
+        p.textContent = t;
+        return p;
+      }));
+      mark();
+    }
+    render();
+    langHooks.push(render);
+    return { step() { i = (i + 1) % VI.length; mark(); } };
+  })();
+
+  function syncLyBtns() {
+    const on = notchEl.classList.contains('m-lyrics');
+    for (const b of $$('.np .ly-btn')) b.setAttribute('aria-pressed', String(on));
+  }
+  for (const b of $$('.ly-btn')) {
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      D[current].touch();
+      notchEl.classList.toggle('m-lyrics');
+      syncLyBtns();
+    });
+  }
+
+  D.lyrics = makeDemo({
+    on() {
+      notchEl.classList.add('open', 'm-lyrics');
+      screen.classList.add('notch-open');
+      syncLyBtns();
+      if (!reduced) D.lyrics.every(2800, () => { if (notchEl.classList.contains('m-lyrics')) LY.step(); });
+    },
+    off() {
+      notchEl.classList.remove('open', 'm-lyrics');
+      screen.classList.remove('notch-open');
+      syncLyBtns();
+    },
+  });
+
+  // ---------- Claude Code: thẻ duyệt thả xuống, terminal chạy tiếp theo lựa chọn ----------
+  D.claude = (() => {
+    const term = $('#cl-term');
+    const REQ = [
+      { tool: 'Bash', title: ['Claude muốn dùng Bash', 'Claude wants to use Bash'], cmd: 'npm run build',
+        call: 'Bash(npm run build)', out: ['> vite build', '✓ built in 1.84s'] },
+      { tool: 'Edit', title: ['Claude muốn sửa file', 'Claude wants to edit a file'], cmd: 'src/pages/index.html',
+        call: 'Edit(src/pages/index.html)', out: ['⎿ Updated src/pages/index.html (+12 −3)'] },
+      { tool: 'WebFetch', title: ['Claude muốn mở trang web', 'Claude wants to fetch a page'], cmd: 'https://lrclib.net/docs',
+        call: 'WebFetch(lrclib.net/docs)', out: ['⎿ Received 18.2 KB (200 OK)'] },
+    ];
+    let lines = [];
+    let n = 0;
+    let pending = null;
+    const always = new Set();
+    function draw() {
+      term.replaceChildren(...lines.map(([t, c]) => {
+        const el = document.createElement('code');
+        el.textContent = t;
+        if (c) el.className = c;
+        return el;
+      }));
+    }
+    function line(t, c) { lines.push([t, c]); if (lines.length > 10) lines.shift(); draw(); }
+    function setCard(on) {
+      notchEl.classList.toggle('open', on);
+      notchEl.classList.toggle('m-claude', on);
+      screen.classList.toggle('notch-open', on);
+    }
+    function reset() {
+      lines = [];
+      n = 0;
+      pending = null;
+      always.clear();
+      setCard(false);
+      line('$ claude');
+      line(T('✻ Thêm trang giới thiệu cho zMac', '✻ Add a landing page for zMac'), 'c-task');
+    }
+    function ask() {
+      if (pending) return;
+      const r = REQ[n % REQ.length];
+      n += 1;
+      line('⏺ ' + r.call);
+      // Đã "Luôn cho phép" thì Claude Code không hỏi lại công cụ đó.
+      if (always.has(r.tool)) { for (const o of r.out) line('  ' + o, 'dim'); return; }
+      pending = r;
+      line(T('  Đang chờ duyệt trên notch…', '  Waiting for approval on the notch…'), 'wait');
+      $('#cl-title').textContent = T(r.title[0], r.title[1]);
+      $('#cl-cmd').textContent = r.cmd;
+      setCard(true);
+    }
+    function decide(kind) {
+      if (!pending) return;
+      const r = pending;
+      pending = null;
+      lines.pop();
+      if (kind === 'deny') {
+        line(T('  ✗ Bạn đã từ chối trên notch', '  ✗ You denied it on the notch'), 'no');
+      } else {
+        if (kind === 'always') always.add(r.tool);
+        line(kind === 'always' ? T(`  ✓ Luôn cho phép ${r.tool}`, `  ✓ Always allow ${r.tool}`) : T('  ✓ Đã cho phép', '  ✓ Allowed'), 'ok');
+        for (const o of r.out) line('  ' + o, 'dim');
+      }
+      setCard(false);
+    }
+    function press(kind) {
+      const b = $(`[data-cl="${kind}"]`);
+      b.classList.add('press');
+      d.later(160, () => { b.classList.remove('press'); decide(kind); });
+    }
+    const d = makeDemo({
+      script: () => [[900, ask], [2700, () => press('allow')], [1500, ask], [2700, () => press('allow')], [1500, ask],
+        [2700, () => press('deny')], [2800, reset]],
+      on() { reset(); if (d.touched || reduced) ask(); },
+      off() { pending = null; setCard(false); },
+    });
+    for (const b of $$('[data-cl]')) {
+      b.addEventListener('click', () => { d.touch(); decide(b.dataset.cl); d.later(1400, ask); });
+    }
+    langHooks.push(() => { if (current === 'claude' && !pending) { reset(); if (d.touched) ask(); } });
+    return d;
+  })();
+
+  // ---------- Thú cưng: cùng lưới pixel với app (PetSprites.swift), vẽ lên canvas ----------
+  const CAT = (() => {
+    const half = ['..d....', '.dbd...', '.dlbd..', '.dbbbdd', 'dbbbbbb', 'dbbEbbb', 'dbbebbn', 'dbpbbbb', '.dbbbbb', '..ddbbb',
+      '..dbbll', '..dbbll', '..dbbbb'];
+    return {
+      body: half.map((h) => h + [...h].reverse().join('')),
+      feet: ['...dd....dd...', '..dd.....dd...', '...dd.....dd..'],
+      overlay: [[[12, 12, 'b'], [11, 12, 'b'], [10, 13, 'b'], [9, 13, 'b'], [8, 13, 'd']],
+        [[12, 12, 'b'], [11, 13, 'b'], [10, 13, 'b'], [9, 12, 'b'], [8, 12, 'd']]],
+      pal: { d: '#B5652B', b: '#F2A65A', l: '#FCE3C6', E: '#2B1B12', e: '#2B1B12', n: '#FF8FA3', p: '#FF8FA3' },
+    };
+  })();
+  // pose: 'idle' | 'blink' | 'happy' | 0 | 1 (bước chân). lift: nhấc lên một ô.
+  function drawCat(cv, pose, frame, lift) {
+    const ctx = cv.getContext('2d');
+    const cell = cv.width / 14;
+    const closed = pose === 'blink' || pose === 'happy';
+    const rows = CAT.body.map((r) => [...r].map((ch) => (closed && ch === 'E' ? 'b' : ch)));
+    rows.push([...CAT.feet[typeof pose === 'number' ? 1 + (pose % 2) : 0]]);
+    for (const [r, c, ch] of CAT.overlay[frame % 2]) rows[r][c] = ch;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    rows.forEach((row, y) => row.forEach((ch, x) => {
+      const col = CAT.pal[ch];
+      if (!col) return;
+      ctx.fillStyle = col;
+      ctx.fillRect(x * cell, (y + 1 - lift) * cell, cell, cell);
+    }));
+  }
+
+  D.pet = (() => {
+    const wing = $('#pet-wing');
+    const cat = $('#pet-cat');
+    const hearts = $('#pet-hearts');
+    const IDLE = [['idle', 0, 0], ['idle', 1, 0], ['idle', 0, 0], ['blink', 1, 0], ['idle', 0, 0], ['idle', 1, 0],
+      [0, 0, 1], [1, 1, 0], [0, 0, 1], [1, 1, 0], ['idle', 0, 0], ['idle', 1, 0]];
+    const HAPPY = [['happy', 0, 1], ['happy', 1, 0]];
+    let k = 0;
+    let happyUntil = 0;
+    let x = 30;
+    let dir = 1;
+    let food = 58;
+    let joy = 66;
+    const isOpen = () => notchEl.classList.contains('open');
+    function stats() {
+      $('#pet-food').style.width = food + '%';
+      $('#pet-food-t').textContent = food + '%';
+      $('#pet-joy').style.width = joy + '%';
+      $('#pet-joy-t').textContent = joy + '%';
+    }
+    function tick() {
+      k += 1;
+      const happy = Date.now() < happyUntil;
+      const loop = happy ? HAPPY : IDLE;
+      const [pose, frame, lift] = loop[k % loop.length];
+      drawCat(wing, pose, frame, lift);
+      if (!isOpen()) return;
+      if (happy) { drawCat(cat, pose, frame, lift); return; }
+      // Đi qua lại trong sân.
+      x += dir * 3;
+      if (x > 68 || x < 4) dir = -dir;
+      cat.style.left = x + '%';
+      cat.classList.toggle('flip', dir < 0);
+      drawCat(cat, k % 2, k % 2, k % 2 === 0 ? 1 : 0);
+    }
+    function setOpen(v) {
+      notchEl.classList.toggle('open', v);
+      notchEl.classList.toggle('m-pet', v);
+      screen.classList.toggle('notch-open', v);
+      if (v) drawCat(cat, 'idle', 0, 0);
+    }
+    function act(kind) {
+      if (kind === 'feed') food = Math.min(100, food + 25);
+      if (kind === 'pat') joy = Math.min(100, joy + 10);
+      if (kind === 'play') { joy = Math.min(100, joy + 20); food = Math.max(0, food - 5); }
+      happyUntil = Date.now() + 1500;
+      hearts.classList.remove('on');
+      void hearts.offsetWidth;   // chạy lại hoạt hình tim
+      hearts.classList.add('on');
+      stats();
+    }
+    function press(kind) {
+      const b = $(`[data-pet="${kind}"]`);
+      b.classList.add('press');
+      setTimeout(() => b.classList.remove('press'), 160);
+      act(kind);
+    }
+    const d = makeDemo({
+      script: () => [[1400, () => setOpen(true)], [2600, () => press('feed')], [1900, () => press('play')], [2600, () => setOpen(false)],
+        [3200, () => {}]],
+      on() {
+        notchEl.classList.add('petwing');
+        notchEl.tabIndex = 0;
+        stats();
+        drawCat(wing, 'idle', 0, 0);
+        if (!reduced) d.every(320, tick);
+      },
+      off() {
+        notchEl.classList.remove('petwing', 'open', 'm-pet');
+        screen.classList.remove('notch-open');
+        notchEl.tabIndex = -1;
+      },
+    });
+    notchEl.addEventListener('click', (e) => {
+      if (current !== 'pet' || e.target.closest('button')) return;
+      d.touch();
+      setOpen(!isOpen());
+    });
+    notchEl.addEventListener('keydown', (e) => {
+      if (current !== 'pet' || e.target !== notchEl || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      d.touch();
+      setOpen(!isOpen());
+    });
+    for (const b of $$('[data-pet]')) b.addEventListener('click', () => { d.touch(); act(b.dataset.pet); });
+    stats();
+    drawCat(wing, 'idle', 0, 0);
+    drawCat(cat, 'idle', 0, 0);
     return d;
   })();
 
@@ -774,6 +1073,84 @@
     inView = true;
     startDemo();
   }
+
+  // ---------- Phiên bản: dòng thời gian đọc từ changelog.json (cùng nội dung CHANGELOG.md) ----------
+  (() => {
+    const list = $('#changelog-list');
+    let data = null;
+    const closed = new Set();
+    const fmtDate = (iso) => {
+      const [y, m, d] = iso.split('-').map(Number);
+      return lang === 'en'
+        ? new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : `${pad(d)}/${pad(m)}/${y}`;
+    };
+    // "**Đậm**: phần còn lại": dựng bằng DOM, không dùng innerHTML.
+    function rich(text) {
+      const frag = document.createDocumentFragment();
+      text.split('**').forEach((part, i) => {
+        if (!part) return;
+        if (i % 2) { const b = document.createElement('b'); b.textContent = part; frag.append(b); } else frag.append(part);
+      });
+      return frag;
+    }
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+    function setOpen(btn, body, version, open) {
+      body.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+      btn.setAttribute('aria-label', `${open ? T('Thu gọn', 'Collapse') : T('Mở ra', 'Expand')} ${version}`);
+    }
+    function render() {
+      if (!data) return;
+      list.replaceChildren(...data.releases.map((r, idx) => {
+        const li = el('li', 'tl-item' + (idx === 0 ? ' latest' : ''));
+        const card = el('article', 'card rel-card');
+        card.id = 'v' + r.version.replace(/\./g, '-');
+        const head = el('header', 'rel-h');
+        head.append(el('b', 'rel-v', r.version));
+        if (idx === 0) head.append(el('span', 'rel-new', T('Mới nhất', 'Latest')));
+        const time = el('time', '', fmtDate(r.date));
+        time.dateTime = r.date;
+        head.append(time);
+        const body = el('div', 'rel-b');
+        body.id = 'rel-b-' + idx;
+        const btn = el('button', 'rel-x');
+        btn.type = 'button';
+        btn.setAttribute('aria-controls', body.id);
+        setOpen(btn, body, r.version, !closed.has(r.version));
+        btn.addEventListener('click', () => {
+          const open = body.hidden;
+          if (open) closed.delete(r.version); else closed.add(r.version);
+          setOpen(btn, body, r.version, open);
+        });
+        head.append(btn);
+        for (const [key, vi, en] of [['added', 'Thêm', 'Added'], ['fixed', 'Sửa', 'Fixed']]) {
+          if (!r[key] || !r[key].length) continue;
+          const ul = el('ul');
+          for (const item of r[key]) { const i = el('li'); i.append(rich(lang === 'en' ? item.en : item.vi)); ul.append(i); }
+          body.append(el('p', 'rel-k', T(vi, en)), ul);
+        }
+        const more = el('a', 'rel-more', T('Ghi chú đầy đủ →', 'Full notes →'));
+        more.href = `${data.notes}#${r.anchor}`;
+        more.target = '_blank';
+        more.rel = 'noopener';
+        body.append(more);
+        card.append(head, body);
+        li.append(card);
+        return li;
+      }));
+    }
+    fetch('changelog.json', { cache: 'no-cache' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j && Array.isArray(j.releases)) { data = j; render(); } })
+      .catch(() => { /* giữ liên kết tới CHANGELOG trên GitHub */ });
+    langHooks.push(render);
+  })();
 
   // ---------- Nút chép lệnh ----------
   for (const btn of $$('[data-copy]')) {

@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'">
 <title data-en="zMac: one light menu bar app for your Mac">zMac: một app menu bar nhẹ cho Mac</title>
-<meta name="description" content="zMac gộp chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app và notch vào một app menu bar khoảng 20 MB RAM. Miễn phí, mã nguồn mở." data-en-content="zMac puts window switching, window snapping, clipboard history, display brightness, charge limiting, per-app volume and the notch into one menu bar app that uses about 20 MB of memory. Free and open source.">
+<meta name="description" content="zMac gộp chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app và notch vào một app menu bar khoảng 25 MB RAM. Miễn phí, mã nguồn mở." data-en-content="zMac puts window switching, window snapping, clipboard history, display brightness, charge limiting, per-app volume and the notch into one menu bar app that uses about 25 MB of memory. Free and open source.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#14162e">
 <meta property="og:type" content="website">
 <meta property="og:title" content="zMac">
-<meta property="og:description" content="Cả dãy app menu bar, gộp vào một. Khoảng 20 MB RAM. Miễn phí, mã nguồn mở." data-en-content="A whole row of menu bar apps, folded into one. About 20 MB of memory. Free and open source.">
+<meta property="og:description" content="Cả dãy app menu bar, gộp vào một. Khoảng 25 MB RAM. Miễn phí, mã nguồn mở." data-en-content="A whole row of menu bar apps, folded into one. About 25 MB of memory. Free and open source.">
 <link rel="icon" href="assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <script src="theme.js"></script>
@@ -64,6 +64,13 @@
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4.5 4.5V20a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5zM13.5 3.5v5h5"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3c.6 4.6 2.9 7 7.5 7.6-4.6.6-6.9 2.9-7.5 7.5-.6-4.6-2.9-6.9-7.5-7.5C9.1 10 11.4 7.6 12 3z"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 4.5h16a.5.5 0 0 1 .5.5v10.5a.5.5 0 0 1-.5.5H10l-5 4v-4H4a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5z"/><path d="M9.5 8.5v3M14.5 8.5v3"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><circle cx="6.2" cy="10" r="1.9"/><circle cx="10" cy="5.8" r="1.9"/><circle cx="15" cy="6.2" r="1.9"/><circle cx="18.4" cy="10.6" r="1.9"/><path d="M12.3 11.6c-3.2 0-6.3 4.1-6.3 6.5 0 1.8 1.7 2.4 3.2 2 1.3-.4 2.1-.8 3.1-.8s1.8.4 3.1.8c1.5.4 3.2-.2 3.2-2 0-2.4-3.1-6.5-6.3-6.5z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 12V6a1.5 1.5 0 0 1 3 0v5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v6.5c0 4.4-2.6 8-6.5 8-2.6 0-4.1-1.3-5.5-3.6L3.4 14a1.5 1.5 0 0 1 2.5-1.6L8 15"/></symbol>
+  <symbol id="i-fork" viewBox="0 0 24 24"><path d="M7 3v7a2.5 2.5 0 0 0 5 0V3M9.5 3v18M17 21V3c-2.2 1.4-3 4-3 7.5 0 2 1.2 3 3 3"/></symbol>
+  <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5l3.3 2.4-1.3 3.9h-4l-1.3-3.9zM12 3.5v4M15.3 9.9l4.6-1.5M14 13.8l2.8 3.9M10 13.8l-2.8 3.9M8.7 9.9 4.1 8.4"/></symbol>
 </svg>
 
 <a class="skip" href="#main" data-en="Skip to content">Bỏ qua đến nội dung</a>
@@ -75,6 +82,7 @@
       <a href="#modules" data-en="Try it">Thử ngay</a>
       <a href="#light" data-en="Lightweight">Nhẹ</a>
       <a href="#install" data-en="Install">Cài đặt</a>
+      <a href="#changelog" data-en="What's new">Phiên bản</a>
       <a href="#privacy" data-en="Privacy">Riêng tư</a>
       <a href="#faq" data-en="FAQ">Hỏi đáp</a>
       <a href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener">GitHub</a>
@@ -91,7 +99,7 @@
   <div class="wrap hero-copy">
     <img class="hero-icon" src="assets/icon.png" alt="" width="104" height="104">
     <h1 data-en="A whole row of menu bar apps,<br>folded into one.">Cả dãy app menu bar,<br>gộp vào một.</h1>
-    <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process, in about 20 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình, chỉ khoảng 20 MB RAM. Miễn phí, mã nguồn mở.</p>
+    <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process, in about 25 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình, chỉ khoảng 25 MB RAM. Miễn phí, mã nguồn mở.</p>
     <div class="cta-row">
       <a class="btn btn-lg btn-light" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
       <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
@@ -120,10 +128,19 @@
             <!-- Notch: dùng chung, chỉ tương tác trong demo Notch -->
             <div class="notch" id="notch" tabindex="-1" aria-label="Notch">
               <div class="n-charge" aria-hidden="true"><span class="n-bolt"><svg class="i f"><use href="#i-bolt"/></svg><span data-en="Charging">Đang sạc</span></span><b>82%</b></div>
+              <div class="n-hud" aria-hidden="true"><svg class="i"><use href="#i-sound"/></svg><span class="n-lvl"><i><b id="n-lvl"></b></i><em id="n-lvl-t">63%</em></span></div>
+              <div class="n-alert" aria-hidden="true"><span class="na-ic"><svg class="i"><use href="#i-battery"/></svg></span><span class="na-t"><b><span data-en="Low battery">Pin yếu</span> <em>10%</em></b><small data-en="Turn on Low Power Mode or plug in.">Bật Chế độ nguồn điện thấp hoặc cắm sạc.</small></span></div>
+              <div class="n-wing" aria-hidden="true"><span class="nw-l"><span class="nw-art"></span><span class="bars"><i></i><i></i><i></i><i></i></span></span><canvas class="nw-pet" id="pet-wing" width="56" height="60"></canvas></div>
+              <div class="n-top" aria-hidden="true">
+                <span class="nt-tabs"><span class="nt-tab nt-music"><svg class="i"><use href="#i-music"/></svg><span data-en="Music">Nhạc</span></span><span class="nt-tab"><svg class="i"><use href="#i-folder"/></svg></span><span class="nt-tab nt-paw"><svg class="i"><use href="#i-paw"/></svg><span data-en="Cat">Mèo</span></span></span>
+                <span class="nt-claude"><svg class="i f"><use href="#i-sparkle"/></svg>Claude Code</span>
+                <span class="nt-use"><svg class="i f"><use href="#i-sparkle"/></svg>5h <b class="u-mid">42%</b><i></i>7d <b>18%</b></span>
+              </div>
               <div class="n-open">
                 <div class="np">
                   <span class="np-art"><span class="np-badge"><svg class="i"><use href="#i-globe"/></svg></span></span>
                   <div class="np-t"><b id="np-title">Quiet Harbor</b><span id="np-artist">Lumen Drift</span></div>
+                  <button type="button" class="ly-btn" aria-pressed="false" aria-label="Lời bài hát" data-en-label="Lyrics"><svg class="i"><use href="#i-quote"/></svg></button>
                   <div class="np-ctl">
                     <button type="button" id="np-prev" aria-label="Bài trước" data-en-label="Previous track"><svg class="i f"><use href="#i-prev"/></svg></button>
                     <button type="button" id="np-play" aria-label="Phát / tạm dừng" data-en-label="Play / pause"><svg class="i f"><use href="#i-pause"/></svg></button>
@@ -131,9 +148,32 @@
                   </div>
                   <div class="np-bar"><span id="np-cur">0:42</span><i><b id="np-prog"></b></i><span id="np-len">3:05</span></div>
                 </div>
-                <div class="shelf">
-                  <span class="sh-l" data-en="File shelf">Kệ file</span>
-                  <div class="sh-files"><span class="file"><svg class="i"><use href="#i-file"/></svg>bao-cao.pdf</span><span class="file"><svg class="i"><use href="#i-image"/></svg>anh-bia.png</span><span class="file drop" data-en="Drop here">Thả vào đây</span></div>
+                <div class="ly">
+                  <div class="ly-h"><span class="np-art sm"></span><span class="np-t"><b>Quiet Harbor</b><span>Lumen Drift</span></span><button type="button" class="ly-btn on" aria-pressed="true" aria-label="Ẩn lời bài hát" data-en-label="Hide lyrics"><svg class="i"><use href="#i-quote"/></svg></button></div>
+                  <div class="ly-box"><div class="ly-in" id="ly-in"></div></div>
+                </div>
+                <div class="npet">
+                  <div class="pet-stage"><canvas class="pet-cat" id="pet-cat" width="56" height="60"></canvas><span class="hearts" id="pet-hearts">♥ ♥</span></div>
+                  <div class="pet-info">
+                    <p class="pet-name"><b data-en="Cat">Mèo</b><span class="pet-lv" id="pet-lv" data-en="Lv 3">Cấp 3</span></p>
+                    <p class="pet-m"><svg class="i"><use href="#i-fork"/></svg><i><b id="pet-food"></b></i><em id="pet-food-t"></em></p>
+                    <p class="pet-m joy"><svg class="i"><use href="#i-paw"/></svg><i><b id="pet-joy"></b></i><em id="pet-joy-t"></em></p>
+                    <div class="pet-btns">
+                      <button type="button" data-pet="feed" aria-label="Cho ăn" data-en-label="Feed"><svg class="i"><use href="#i-fork"/></svg></button>
+                      <button type="button" data-pet="pat" aria-label="Vuốt ve" data-en-label="Pat"><svg class="i"><use href="#i-hand"/></svg></button>
+                      <button type="button" data-pet="play" aria-label="Chơi" data-en-label="Play"><svg class="i"><use href="#i-ball"/></svg></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="ncl">
+                  <div class="ncl-h"><span class="ncl-ic"><svg class="i f"><use href="#i-sparkle"/></svg></span><span class="ncl-t"><b id="cl-title">Claude muốn dùng Bash</b><small>zmac-website</small></span><span class="ncl-n" id="cl-count"></span></div>
+                  <code class="ncl-cmd" id="cl-cmd">npm run build</code>
+                  <div class="ncl-b"><span class="ncl-hint" data-en="Ask in terminal">Hỏi trong terminal</span><button type="button" data-cl="deny" class="deny" data-en="Deny">Từ chối</button><button type="button" data-cl="always" data-en="Always allow">Luôn cho phép</button><button type="button" data-cl="allow" class="allow" data-en="Allow">Cho phép</button></div>
+                </div>
+                <div class="cal">
+                  <div class="cal-h"><b id="cal-month">Tháng 11, 2026</b><span>‹ ›</span></div>
+                  <div class="cal-w" id="cal-w"></div>
+                  <div class="cal-e"><i></i><span><b>Demo sprint</b><small>17:00 – 18:00</small></span><span class="meet"><svg class="i f"><use href="#i-video"/></svg>Meet</span></div>
                 </div>
               </div>
             </div>
@@ -142,9 +182,9 @@
             <div class="demo on" id="demo-overview" data-demo="overview">
               <div class="widget glass" aria-hidden="true">
                 <span class="w-h"><span class="ztiles"><i></i><i></i><i></i><i></i></span>zMac</span>
-                <div class="w-row"><span data-en="Memory">Bộ nhớ</span><b>18 MB</b></div>
+                <div class="w-row"><span data-en="Memory">Bộ nhớ</span><b>24 MB</b></div>
                 <div class="w-row"><span>CPU</span><b data-en="0.0%">0,0%</b></div>
-                <div class="w-row"><span data-en="Modules">Module</span><b>8 / 8</b></div>
+                <div class="w-row"><span data-en="Modules">Module</span><b>11 / 11</b></div>
               </div>
               <div class="pop glass">
                 <div class="pop-h"><b>zMac</b><span data-en="Tap a row to try it">Bấm để thử</span></div>
@@ -204,6 +244,19 @@
             <!-- Notch -->
             <div class="demo" id="demo-notch" data-demo="notch">
               <p class="n-hint glass" data-en="Hover the notch">Rê chuột vào notch</p>
+            </div>
+
+            <!-- Claude Code -->
+            <div class="demo" id="demo-claude" data-demo="claude">
+              <div class="win cl-win"><div class="wb"><i></i><i></i><i></i><span>Terminal · zmac-website</span></div><div class="wc term" id="cl-term" aria-live="polite"></div></div>
+            </div>
+
+            <!-- Lời bài hát -->
+            <div class="demo" id="demo-lyrics" data-demo="lyrics"></div>
+
+            <!-- Thú cưng -->
+            <div class="demo" id="demo-pet" data-demo="pet">
+              <p class="n-hint glass" data-en="Click the notch">Bấm vào notch</p>
             </div>
 
             <!-- Màn hình -->
@@ -280,6 +333,9 @@
         <button type="button" role="tab" id="tab-snap" data-demo="snap" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-o"><svg class="i"><use href="#i-snap"/></svg></span><span data-en="Snapping">Chia cửa sổ</span></button>
         <button type="button" role="tab" id="tab-clipboard" data-demo="clipboard" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-p"><svg class="i"><use href="#i-clip"/></svg></span><span>Clipboard</span></button>
         <button type="button" role="tab" id="tab-notch" data-demo="notch" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-g"><svg class="i"><use href="#i-notch"/></svg></span><span>Notch</span></button>
+        <button type="button" role="tab" id="tab-claude" data-demo="claude" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-o"><svg class="i f"><use href="#i-sparkle"/></svg></span><span>Claude Code</span></button>
+        <button type="button" role="tab" id="tab-lyrics" data-demo="lyrics" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-b"><svg class="i"><use href="#i-quote"/></svg></span><span data-en="Lyrics">Lời bài hát</span></button>
+        <button type="button" role="tab" id="tab-pet" data-demo="pet" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-p"><svg class="i"><use href="#i-paw"/></svg></span><span data-en="Pet">Thú cưng</span></button>
         <button type="button" role="tab" id="tab-display" data-demo="display" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-o"><svg class="i"><use href="#i-display"/></svg></span><span data-en="Displays">Màn hình</span></button>
         <button type="button" role="tab" id="tab-battery" data-demo="battery" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span><span data-en="Battery">Pin</span></button>
         <button type="button" role="tab" id="tab-sound" data-demo="sound" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span><span data-en="Sound">Âm thanh</span></button>
@@ -290,7 +346,7 @@
     <div class="caps">
       <div class="cap" data-for="overview">
         <h2 data-en="Everything behind one icon">Tất cả sau một icon</h2>
-        <p class="rep" data-en="8 modules · 1 process · about 20 MB">8 module · 1 tiến trình · khoảng 20 MB</p>
+        <p class="rep" data-en="11 modules · 1 process · about 25 MB">11 module · 1 tiến trình · khoảng 25 MB</p>
         <p data-en="Click the zMac icon in the menu bar to adjust brightness, battery, volume and keep awake. Turn off any module you don't need: it isn't even created.">Bấm icon zMac trên menu bar để chỉnh nhanh độ sáng, pin, âm lượng, giữ máy thức. Module nào không cần thì tắt, nó sẽ không được tạo ra.</p>
         <p class="try" data-en="Try it: click a row in the popover, or pick a module below the screen.">Thử: bấm một dòng trong popover, hoặc chọn module dưới màn hình.</p>
       </div>
@@ -345,9 +401,27 @@
       <div class="cap" data-for="notch" hidden>
         <h2>Notch</h2>
         <p class="rep" data-en="Replaces NotchNook">Thay cho NotchNook</p>
-        <p data-en="Hover the notch for what's playing, with album art, from Music, Spotify or YouTube in your browser, plus media controls and a shelf to park files. Plug in and the notch shows your battery. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát kèm ảnh bìa, từ Music, Spotify hay YouTube trên trình duyệt, điều khiển nhạc, có kệ để tạm file. Cắm sạc là notch báo pin. Mac không có notch thì bật notch giả.</p>
-        <div class="ctrl"><button type="button" class="kbtn" id="n-toggle"><span data-en="Open the notch">Mở notch</span></button><button type="button" class="kbtn" id="n-plug"><svg class="i"><use href="#i-bolt"/></svg><span data-en="Plug in">Cắm sạc</span></button></div>
-        <p class="try" data-en="Try it: hover the notch, play, pause and skip, then plug in.">Thử: rê chuột vào notch, phát, tạm dừng, chuyển bài, rồi cắm sạc.</p>
+        <p data-en="Hover the notch for what's playing, with album art, from Music, Spotify or YouTube in your browser, plus your week and next meeting from the Calendar app. Volume and brightness keys show on the notch instead of the macOS HUD, plugging in shows your battery, and a card drops down when the battery runs low. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát kèm ảnh bìa, từ Music, Spotify hay YouTube trên trình duyệt, cùng tuần này và cuộc họp sắp tới từ app Lịch. Phím âm lượng, độ sáng hiện trên notch thay HUD của macOS, cắm sạc là notch báo pin, pin yếu thì thả xuống một thẻ nhắc. Mac không có notch thì bật notch giả.</p>
+        <div class="ctrl"><button type="button" class="kbtn" id="n-toggle"><span data-en="Open the notch">Mở notch</span></button><button type="button" class="kbtn" id="n-vol"><svg class="i"><use href="#i-sound"/></svg><span data-en="Volume up">Tăng âm lượng</span></button><button type="button" class="kbtn" id="n-plug"><svg class="i"><use href="#i-bolt"/></svg><span data-en="Plug in">Cắm sạc</span></button><button type="button" class="kbtn" id="n-low"><svg class="i"><use href="#i-battery"/></svg><span data-en="Low battery">Pin yếu</span></button></div>
+        <p class="try" data-en="Try it: hover the notch, play, pause and skip, then press the buttons above.">Thử: rê chuột vào notch, phát, tạm dừng, chuyển bài, rồi bấm các nút trên.</p>
+      </div>
+      <div class="cap" data-for="claude" hidden>
+        <h2 data-en="Approve Claude Code from the notch">Duyệt Claude Code trên notch</h2>
+        <p class="rep" data-en="Replaces Roost">Thay cho Roost</p>
+        <p data-en="When Claude Code wants to run a command, edit a file or fetch a page, a card drops from the notch: Allow, Always allow or Deny, without going back to the terminal. When Claude asks you a question or wants a plan approved, you answer right there too. Your 5-hour and 7-day limits sit right next to it. zMac only hooks into Claude Code after you click Connect, and Disconnect puts your settings back.">Khi Claude Code xin chạy lệnh, sửa file hay mở trang web, notch thả xuống một thẻ: Cho phép, Luôn cho phép hoặc Từ chối, không phải quay lại terminal. Claude hỏi lại hay xin duyệt kế hoạch thì cũng chọn ngay trên đó. Hạn mức 5 giờ và 7 ngày nằm ngay cạnh. zMac chỉ nối vào Claude Code khi bạn bấm Kết nối, bấm Ngắt là trả lại cài đặt cũ.</p>
+        <p class="try" data-en="Try it: click Allow, Always allow or Deny on the card and watch the terminal.">Thử: bấm Cho phép, Luôn cho phép hoặc Từ chối trên thẻ rồi xem terminal.</p>
+      </div>
+      <div class="cap" data-for="lyrics" hidden>
+        <h2 data-en="Lyrics">Lời bài hát</h2>
+        <p class="rep" data-en="In time with the music">Chạy theo nhạc</p>
+        <p data-en="Press the lyrics button in the player and the words take the place of the album art, with the current line lit up as it's sung. Lyrics come from lrclib.net. Only the title, artist, album and length are sent, and it stays off until you turn it on.">Bấm nút Lời trong trình phát: lời thay chỗ ảnh bìa, dòng đang hát sáng lên đúng lúc. Lời lấy từ lrclib.net, chỉ gửi tên bài, ca sĩ, album và độ dài, và tắt sẵn cho tới khi bạn bật.</p>
+        <p class="try" data-en="Try it: click the lyrics button to switch between the words and the player.">Thử: bấm nút Lời để đổi qua lại giữa lời và trình phát.</p>
+      </div>
+      <div class="cap" data-for="pet" hidden>
+        <h2 data-en="A pet on your notch">Thú cưng trên notch</h2>
+        <p class="rep" data-en="Cat, pup, slime or chick">Mèo, cún, slime hay gà con</p>
+        <p data-en="A pixel friend drawn by zMac sits beside the notch. It bobs along to your music, sleeps late at night and gets hungry if you forget it. The animation runs on Core Animation, so it costs next to no CPU.">Một bạn pixel do zMac tự vẽ ngồi cạnh notch: nhún theo nhạc, ngủ lúc khuya, đói nếu bạn quên cho ăn. Hoạt hình chạy bằng Core Animation nên gần như không tốn CPU.</p>
+        <p class="try" data-en="Try it: click the notch, then feed, pat or play.">Thử: bấm vào notch rồi cho ăn, vuốt ve hoặc chơi.</p>
       </div>
       <div class="cap" data-for="display" hidden>
         <h2 data-en="Displays">Màn hình</h2>
@@ -381,13 +455,13 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="eyebrow" data-en="How light">Nhẹ đến đâu</p>
-      <h2 data-en="All 8 modules on.<br>Still about 20 MB.">Bật đủ 8 module.<br>Vẫn khoảng 20 MB.</h2>
+      <h2 data-en="All 11 modules on.<br>Still about 25 MB.">Bật đủ 11 module.<br>Vẫn khoảng 25 MB.</h2>
       <p class="sub" data-en="Measured on a MacBook Air M4 running macOS 26.5, while idle.">Đo trên MacBook Air M4, macOS 26.5, lúc máy đang rảnh.</p>
     </div>
     <div class="stats">
-      <div class="stat"><b data-en="16–20 MB">16–20 MB</b><span data-en="memory with just the menu bar icon">bộ nhớ khi chỉ có icon menu bar</span></div>
+      <div class="stat"><b data-en="24 MB">24 MB</b><span data-en="memory with all 11 modules on">bộ nhớ khi bật cả 11 module</span></div>
       <div class="stat"><b data-en="0.0%">0,0%</b><span data-en="CPU when idle, with the odd 1–2% sample">CPU khi rảnh, thỉnh thoảng nhích 1–2%</span></div>
-      <div class="stat"><b data-en="2.1 MB">2,1 MB</b><span data-en="app size, battery daemon included">kích thước app, gồm cả daemon pin</span></div>
+      <div class="stat"><b data-en="3.1 MB">3,1 MB</b><span data-en="app size, battery daemon and Claude hook included">kích thước app, gồm cả daemon pin và hook Claude</span></div>
       <div class="stat"><b data-en="4.4 ms">4,4 ms</b><span data-en="to list 11 windows from 9 apps for ⌥⇥">để liệt kê 11 cửa sổ từ 9 app cho ⌥⇥</span></div>
     </div>
 
@@ -401,7 +475,7 @@
           <tr><th scope="row">AltTab</th><td><div class="track"><span class="bar v-alttab"></span><span class="val">307 MB</span></div></td></tr>
           <tr><th scope="row">Maccy</th><td><div class="track"><span class="bar v-maccy"></span><span class="val">295 MB</span></div></td></tr>
           <tr><th scope="row">NotchNook</th><td><div class="track"><span class="bar v-notchnook"></span><span class="val">50 MB</span></div></td></tr>
-          <tr class="me"><th scope="row">zMac <small data-en="all 8 modules">cả 8 module</small></th><td><div class="track"><span class="bar v-zmac"></span><span class="val" data-en="about 20 MB">khoảng 20 MB</span></div></td></tr>
+          <tr class="me"><th scope="row">zMac <small data-en="all 11 modules">cả 11 module</small></th><td><div class="track"><span class="bar v-zmac"></span><span class="val" data-en="about 25 MB">khoảng 25 MB</span></div></td></tr>
         </tbody>
       </table>
       <p class="note" data-en="Not a perfectly even match: AltTab keeps window snapshots, Maccy holds your clipboard history, and zMac's history was empty during the measurement.">Chưa hẳn ngang nhau: AltTab giữ ảnh chụp cửa sổ, Maccy giữ lịch sử clipboard của bạn, còn lịch sử của zMac lúc đo đang trống.</p>
@@ -453,6 +527,10 @@
     </ol>
     <div class="extras">
       <div class="extra">
+        <p class="small" data-en="Use Homebrew? One command installs zMac, and it opens right away without step 2:">Dùng Homebrew? Một lệnh là cài xong, mở được ngay mà không cần bước 2:</p>
+        <div class="cmd"><code id="cmd-brew2">brew install --cask kienhungpg/tap/zmac</code><button class="copy" type="button" data-copy="cmd-brew2" data-en="Copy">Chép</button></div>
+      </div>
+      <div class="extra">
         <p class="small" data-en="Prefer Terminal for step 2? After dragging zMac into Applications, run:">Thích dùng Terminal cho bước 2? Sau khi kéo zMac vào Applications, chạy:</p>
         <div class="cmd"><code id="cmd-xattr">xattr -dr com.apple.quarantine /Applications/zMac.app</code><button class="copy" type="button" data-copy="cmd-xattr" data-en="Copy">Chép</button></div>
       </div>
@@ -465,6 +543,25 @@
   </div>
 </section>
 
+<section id="changelog" class="sec">
+  <div class="wrap rel">
+    <div class="rel-l">
+      <p class="eyebrow" data-en="Versions">Phiên bản</p>
+      <h2 data-en="What's new<br>in zMac.">Có gì mới<br>trong zMac.</h2>
+      <p class="sub" data-en="Every version is written down here. Turn on auto-update in Settings → General and zMac checks GitHub once a day and asks before installing. A build with the wrong signature is never installed.">Mỗi bản đều được ghi lại ở đây. Bật Tự cập nhật trong Cài đặt → Chung thì zMac kiểm tra GitHub mỗi ngày một lần và hỏi trước khi cài. Bản nào sai chữ ký thì không bao giờ được cài.</p>
+      <div class="brew">
+        <p class="brew-h" data-en="Install with Homebrew">Cài bằng Homebrew</p>
+        <div class="cmd"><span class="ps" aria-hidden="true">$</span><code id="cmd-brew">brew install --cask kienhungpg/tap/zmac</code><button class="copy" type="button" data-copy="cmd-brew" data-en="Copy">Chép</button></div>
+        <p class="brew-n" data-en="Opens right away, no trip to Privacy &amp; Security the first time. Update later with &lt;code&gt;brew upgrade --cask zmac&lt;/code&gt;.">Mở được ngay, không phải vào Quyền riêng tư &amp; Bảo mật lần đầu. Sau này cập nhật bằng <code>brew upgrade --cask zmac</code>.</p>
+        <p class="brew-alt"><span data-en="Or">Hoặc</span> <a href="download/zMac.dmg" download data-en="download the .dmg">tải file .dmg</a> <span data-en="and">và</span> <a href="#install" data-en="see how to open it the first time">xem cách mở lần đầu</a></p>
+      </div>
+    </div>
+    <ol class="tl" id="changelog-list" aria-label="Các phiên bản" data-en-label="Versions">
+      <li class="tl-fallback"><a href="https://github.com/KienHungPG/zMac/blob/main/CHANGELOG.md" target="_blank" rel="noopener" data-en="Read the changelog on GitHub →">Xem ghi chú các phiên bản trên GitHub →</a></li>
+    </ol>
+  </div>
+</section>
+
 <section id="privacy" class="sec">
   <div class="wrap priv">
     <div>
@@ -472,10 +569,10 @@
       <h2 data-en="Offline by default.<br>No account.">Mặc định không mạng.<br>Không tài khoản.</h2>
       <p class="sub" data-en="zMac sends no analytics and does no tracking. Everything stays on your Mac, and the source is open so you can check for yourself.">zMac không gửi số liệu, không theo dõi. Mọi thứ nằm trên máy bạn, và mã nguồn mở để bạn tự kiểm.</p>
       <ul class="points">
-        <li><span class="tile c-b"><svg class="i"><use href="#i-keyboard"/></svg></span><p data-en="<b>Your keystrokes stay yours.</b> zMac registers shortcuts with the system instead of watching the keyboard."><b>Phím bạn gõ không đi qua zMac.</b> Phím tắt đăng ký với hệ thống, zMac không theo dõi bàn phím.</p></li>
+        <li><span class="tile c-b"><svg class="i"><use href="#i-keyboard"/></svg></span><p data-en="<b>Your keystrokes stay yours.</b> zMac registers shortcuts with the system instead of watching the keyboard. Only the volume and brightness keys pass through zMac, so it can show them on the notch."><b>Phím bạn gõ không đi qua zMac.</b> Phím tắt đăng ký với hệ thống, zMac không theo dõi bàn phím. Chỉ phím âm lượng, độ sáng đi qua zMac để hiện trên notch.</p></li>
         <li><span class="tile c-p"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>Clipboard history stays local.</b> It lives in a folder on your Mac and skips anything password managers mark as secret."><b>Lịch sử clipboard chỉ ở trên máy.</b> Lưu trong một thư mục trên Mac và bỏ qua những gì trình quản lý mật khẩu đánh dấu là bí mật.</p></li>
         <li><span class="tile c-g"><svg class="i"><use href="#i-sound"/></svg></span><p data-en="<b>Audio is never recorded.</b> For per-app volume, sound only passes through memory. Nothing is saved."><b>Âm thanh không bị ghi lại.</b> Khi chỉnh âm lượng từng app, âm thanh chỉ đi qua bộ nhớ, không lưu lại gì.</p></li>
-        <li><span class="tile c-o"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>The network only when you turn it on.</b> Lyrics and auto-update are both off by default. Lyrics send the title, artist, album and length to lrclib.net when you open the Lyrics tab. Auto-update asks github.com at most once a day and only installs builds with a valid signature."><b>Chỉ dùng mạng khi bạn bật.</b> Lời bài hát và tự cập nhật đều tắt sẵn. Lời bài hát gửi tên bài, ca sĩ, album, độ dài tới lrclib.net khi bạn mở tab Lời. Tự cập nhật hỏi github.com tối đa mỗi ngày một lần và chỉ cài bản có chữ ký đúng.</p></li>
+        <li><span class="tile c-o"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>The network only when you turn it on.</b> Lyrics and auto-update are both off by default. Lyrics send the title, artist, album and length to lrclib.net while lyrics are showing. Auto-update asks github.com at most once a day and only installs builds with a valid signature. Your calendar is read on your Mac and never sent anywhere."><b>Chỉ dùng mạng khi bạn bật.</b> Lời bài hát và tự cập nhật đều tắt sẵn. Lời bài hát gửi tên bài, ca sĩ, album, độ dài tới lrclib.net khi đang xem lời. Tự cập nhật hỏi github.com tối đa mỗi ngày một lần và chỉ cài bản có chữ ký đúng. Lịch chỉ đọc trên máy, không gửi đi đâu.</p></li>
       </ul>
     </div>
     <div class="card perm">
@@ -483,7 +580,8 @@
       <table>
         <thead><tr><th scope="col" data-en="Permission">Quyền</th><th scope="col" data-en="Used for">Dùng cho</th></tr></thead>
         <tbody>
-          <tr><th scope="row" data-en="Accessibility">Trợ năng</th><td data-en="Window switching and snapping, pasting from the clipboard, media buttons">Chuyển và chia cửa sổ, dán từ clipboard, nút điều khiển nhạc</td></tr>
+          <tr><th scope="row" data-en="Accessibility">Trợ năng</th><td data-en="Window switching and snapping, pasting from the clipboard, media buttons, volume and brightness keys on the notch">Chuyển và chia cửa sổ, dán từ clipboard, nút điều khiển nhạc, phím âm lượng và độ sáng trên notch</td></tr>
+          <tr><th scope="row" data-en="Calendars">Lịch</th><td data-en="Your week and next meeting in the notch. Read only, asked when you click Allow.">Tuần này và cuộc họp sắp tới trong notch. Chỉ đọc, chỉ hỏi khi bạn bấm Cho phép.</td></tr>
           <tr><th scope="row" data-en="System audio recording">Ghi âm thanh hệ thống</th><td data-en="Per-app volume. Asked the first time you change an app's volume.">Âm lượng từng app. Chỉ hỏi lần đầu bạn chỉnh âm lượng một app.</td></tr>
           <tr><th scope="row" data-en="Screen recording">Ghi màn hình</th><td data-en="Window previews in ⌥⇥. Off by default.">Ảnh xem trước trong ⌥⇥. Mặc định tắt.</td></tr>
           <tr><th scope="row" data-en="Admin password, once">Mật khẩu admin, một lần</th><td data-en="Installing the charge limit daemon. Only if you use charge limiting.">Cài daemon giới hạn sạc. Chỉ khi bạn dùng tính năng này.</td></tr>
@@ -542,7 +640,7 @@
       </details>
       <details class="qa">
         <summary data-en="How do I update?">Cập nhật thế nào?</summary>
-        <p data-en="zMac doesn't update itself yet. Come back here, download the new version and drag it over the old one in Applications. Because the app isn't Developer ID signed, macOS may ask for Accessibility again after an update: remove zMac from the list and add it back.">zMac chưa tự cập nhật. Quay lại trang này, tải bản mới, kéo đè lên bản cũ trong Applications. Vì app chưa ký Developer ID, sau khi cập nhật macOS có thể đòi cấp lại quyền Trợ năng: xoá zMac khỏi danh sách rồi thêm lại.</p>
+        <p data-en="Installed with Homebrew? Run &lt;code&gt;brew upgrade --cask zmac&lt;/code&gt;. Otherwise turn on auto-update in Settings → General, or come back here, download the new version and drag it over the old one in Applications. The &lt;a href=&quot;#changelog&quot;&gt;Versions&lt;/a&gt; section lists what changed. Because the app isn't Developer ID signed, macOS may ask for Accessibility again after an update: remove zMac from the list and add it back.">Cài bằng Homebrew thì chạy <code>brew upgrade --cask zmac</code>. Không thì bật Tự cập nhật trong Cài đặt → Chung, hoặc quay lại trang này, tải bản mới, kéo đè lên bản cũ trong Applications. Mục <a href="#changelog">Phiên bản</a> ghi lại có gì mới ở từng bản. Vì app chưa ký Developer ID, sau khi cập nhật macOS có thể đòi cấp lại quyền Trợ năng: xoá zMac khỏi danh sách rồi thêm lại.</p>
       </details>
     </div>
   </div>
