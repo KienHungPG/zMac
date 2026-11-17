@@ -353,7 +353,8 @@ struct ModulePane: View {
         let hue = ZTheme.hue(type.id)
         VStack(spacing: 0) {
             PaneHeader(symbol: type.symbol, hue: hue, title: type.name,
-                       subtitle: L("Thay cho ", "Replaces ") + type.replaces, detail: type.summary) {
+                       subtitle: type.replaces.isEmpty ? nil : L("Thay cho ", "Replaces ") + type.replaces,
+                       detail: type.summary) {
                 if type.unavailableReason == nil {
                     Toggle("", isOn: Binding(
                         get: { manager.running[type.id] != nil },

@@ -156,6 +156,63 @@ private func groups(_ s: [String: Any]) -> [[String: Any]] {
     #expect(ClaudeHookInstaller.state(removed, path: cmd) == .notInstalled)
 }
 
+private func eventGroups(_ s: [String: Any], _ e: String) -> [[String: Any]] {
+    ((s["hooks"] as? [String: Any])?[e] as? [Any] ?? []).compactMap { $0 as? [String: Any] }
+}
+
+private func eventCommands(_ s: [String: Any], _ e: String) -> [String] {
+    eventGroups(s, e).flatMap { ($0["hooks"] as? [Any] ?? []).compactMap { ($0 as? [String: Any])?["command"] as? String } }
+}
+
+/// PostToolUse và Stop: để gỡ thẻ khi người dùng đã trả lời trong terminal / VS Code.
+@Test func installsWatchHooks() throws {
+    let s = try #require(ClaudeHookInstaller.install([:], path: cmd))
+    let post = eventGroups(s, "PostToolUse")
+    #expect(post.count == 1)
+    #expect(post[0]["matcher"] as? String == "*")
+    #expect(((post[0]["hooks"] as? [Any])?.first as? [String: Any])?["timeout"] as? Int == 5)
+    let stop = eventGroups(s, "Stop")
+    #expect(stop.count == 1)
+    #expect(stop[0]["matcher"] == nil)
+    #expect(eventCommands(s, "Stop") == [cmd])
+    // Bản kết nối cũ chỉ có PermissionRequest: cần cập nhật.
+    var old = s
+    var hooks = try #require(old["hooks"] as? [String: Any])
+    hooks.removeValue(forKey: "PostToolUse")
+    hooks.removeValue(forKey: "Stop")
+    old["hooks"] = hooks
+    #expect(ClaudeHookInstaller.state(old, path: cmd) == .outdated)
+    #expect(ClaudeHookInstaller.state(try #require(ClaudeHookInstaller.install(old, path: cmd)), path: cmd) == .installed)
+    // Gỡ: hook Stop của người dùng còn nguyên, của zMac thì mất.
+    let mine: [String: Any] = ["hooks": ["Stop": [["hooks": [["type": "command", "command": "say xong"]]]]]]
+    let both = try #require(ClaudeHookInstaller.install(mine, path: cmd))
+    #expect(eventCommands(both, "Stop").sorted() == [cmd, "say xong"].sorted())
+    let removed = ClaudeHookInstaller.uninstall(both)
+    #expect(eventCommands(removed, "Stop") == ["say xong"])
+    #expect(eventGroups(removed, "PostToolUse").isEmpty)
+    #expect(ClaudeHookInstaller.state(removed, path: cmd) == .notInstalled)
+}
+
+@Test func eventsResolveCardsAnsweredElsewhere() throws {
+    let q = try #require(parse(#"{"session_id":"s1","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which?","options":[{"label":"A"}]}]}}"#))
+    let card = ClaudeRequest(fd: -1, tool: q.tool, summary: q.summary, project: "", alwaysLabel: nil, suggestions: nil,
+                             questions: q.questions, input: q.input, session: q.session)
+    #expect(card.session == "s1")
+    // Trả lời trong VS Code: công cụ chạy xong, PostToolUse mang đúng câu hỏi (thêm answers).
+    let done = try #require(ClaudeEvent.parse(Array(#"{"hook_event_name":"PostToolUse","session_id":"s1","tool_name":"AskUserQuestion","tool_input":{"questions":[{"question":"Which?","options":[{"label":"A"}]}],"answers":{"Which?":"A"}}}"#.utf8)))
+    #expect(done.resolves(card))
+    // Công cụ khác, hay phiên khác: không đụng.
+    let other = try #require(ClaudeEvent.parse(Array(#"{"hook_event_name":"PostToolUse","session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"}}"#.utf8)))
+    #expect(!other.resolves(card))
+    let elsewhere = try #require(ClaudeEvent.parse(Array(#"{"hook_event_name":"Stop","session_id":"s2"}"#.utf8)))
+    #expect(!elsewhere.resolves(card))
+    // Hết lượt (từ chối trong VS Code thường kết thúc lượt): gỡ mọi thẻ của phiên.
+    #expect(try #require(ClaudeEvent.parse(Array(#"{"hook_event_name":"Stop","session_id":"s1"}"#.utf8))).resolves(card))
+    // Yêu cầu cấp quyền không phải sự kiện.
+    #expect(ClaudeEvent.parse(Array(bashRequest.utf8)) == nil)
+    #expect(ClaudeEvent.parse(Array(#"{"tool_name":"Bash"}"#.utf8)) == nil)
+}
+
 @Test func uninstallDropsOnlyWhatItEmptied() throws {
     let s = try #require(ClaudeHookInstaller.install(["model": "opus"], path: cmd))
     let removed = ClaudeHookInstaller.uninstall(s)
@@ -178,9 +235,9 @@ private func groups(_ s: [String: Any]) -> [[String: Any]] {
 }
 
 @Test func otherApprovalHooksAreReported() throws {
-    let roost: [String: Any] = ["type": "command", "command": "/Applications/Roost.app/Contents/MacOS/roost-hook", "timeout": 110]
-    let s = try #require(ClaudeHookInstaller.install(["hooks": ["PermissionRequest": [["matcher": "*", "hooks": [roost]]]]], path: cmd))
-    #expect(ClaudeHookInstaller.otherPermissionHooks(s) == ["/Applications/Roost.app/Contents/MacOS/roost-hook"])
+    let other: [String: Any] = ["type": "command", "command": "/Applications/Other.app/Contents/MacOS/approve-hook", "timeout": 110]
+    let s = try #require(ClaudeHookInstaller.install(["hooks": ["PermissionRequest": [["matcher": "*", "hooks": [other]]]]], path: cmd))
+    #expect(ClaudeHookInstaller.otherPermissionHooks(s) == ["/Applications/Other.app/Contents/MacOS/approve-hook"])
     #expect(ClaudeHookInstaller.ourCommands(s) == [cmd])
 }
 

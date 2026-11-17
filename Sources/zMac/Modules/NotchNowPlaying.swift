@@ -105,6 +105,17 @@ final class NowPlayingMonitor: NSObject {
         track = nil
     }
 
+    /// Tua được khi adapter chạy (Music / Spotify qua distributed notification thì không).
+    var canSeek: Bool { adapter.canControl && track?.duration != nil && track?.position != nil }
+
+    /// Tua tới `seconds`: đổi vị trí ngay trên thanh, sự kiện thật từ trình phát sẽ ghi đè sau.
+    func seek(to seconds: Double) {
+        guard adapter.seek(seconds), var t = track else { return }
+        t.position = seconds
+        t.updatedAt = Date()
+        set(t)
+    }
+
     /// Bấm phát / dừng: đổi icon ngay, sự kiện thật từ trình phát sẽ ghi đè sau.
     func togglePlayingOptimistic() {
         guard var t = track else { return }

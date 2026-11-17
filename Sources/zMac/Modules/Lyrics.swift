@@ -229,7 +229,7 @@ final class LyricsStore {
 
     private nonisolated static let userAgent: String = {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
-        return "zMac/\(v) (https://zmac-website.vercel.app)"
+        return "zMac/\(v) (https://zmac.vercel.app)"
     }()
 
     /// Lần lượt: /api/get khớp chính xác; tìm theo tên + ca sĩ; tên video "Ca sĩ - Tên bài" tách ra; tìm tự do

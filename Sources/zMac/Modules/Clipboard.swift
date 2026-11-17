@@ -605,7 +605,7 @@ extension ClipboardModule {
         let now = Date()
         items = [
             ClipItem(kind: .text, text: "git push origin main", date: now, pinned: true, hash: "1"),
-            ClipItem(kind: .text, text: "https://zmac-website.vercel.app", date: now, hash: "2"),
+            ClipItem(kind: .text, text: "https://zmac.vercel.app", date: now, hash: "2"),
             ClipItem(kind: .text, text: "Họp thiết kế lúc 15:00, phòng 2", date: now, hash: "3"),
             ClipItem(kind: .files, text: "bao-cao-quy-3.pdf", files: ["/tmp/bao-cao-quy-3.pdf"], date: now, hash: "4"),
             ClipItem(kind: .text, text: "defaults read com.zmac.app", date: now, hash: "5"),

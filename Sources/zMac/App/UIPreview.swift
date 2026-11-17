@@ -55,10 +55,14 @@ enum UIPreview {
             if let claude = manager.module(ClaudeModule.self) {
                 claude.previewRequests()
                 save("notch-claude", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+                // Câu hỏi / kế hoạch làm notch cao thêm: dựng lại hình và khung ảnh theo kích thước mới.
                 claude.previewQuestion()
-                save("notch-claude-question", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+                notch.preview(open: true, track: sampleTrack, hud: nil)
+                let tall = CGSize(width: notch.expandedSize.width + 160, height: notch.expandedSize.height + 40)
+                save("notch-claude-question", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, tall, to: out)
                 claude.previewPlan()
-                save("notch-claude-plan", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+                notch.preview(open: true, track: sampleTrack, hud: nil)
+                save("notch-claude-plan", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, tall, to: out)
                 claude.clearPreview()
             }
             notch.showLyrics = true
@@ -214,7 +218,7 @@ enum UIPreview {
     }
 
     private static var sampleWindows: [SwitcherItem] {
-        let apps = [("/Applications/Safari.app", "Safari", "zmac-website.vercel.app"),
+        let apps = [("/Applications/Safari.app", "Safari", "zmac.vercel.app"),
                     ("/System/Applications/Notes.app", "Notes", "Việc tuần này"),
                     ("/System/Applications/Utilities/Terminal.app", "Terminal", "~/zMac — zsh"),
                     ("/System/Applications/Music.app", "Music", "Quiet Harbor"),

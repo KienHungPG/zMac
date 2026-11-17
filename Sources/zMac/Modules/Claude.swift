@@ -22,6 +22,35 @@ struct ClaudeQuestion: Equatable {
     var multiSelect: Bool
 }
 
+/// Sự kiện Claude Code báo qua hook (PostToolUse, Stop). Claude Code không dừng hook PermissionRequest khi người dùng
+/// trả lời ngay trong terminal hay VS Code, nên zMac dựa vào các sự kiện này để gỡ thẻ đã lỗi thời.
+struct ClaudeEvent: Equatable {
+    var name: String
+    var session: String
+    /// PostToolUse: công cụ vừa chạy, tên và dòng tóm tắt tính giống hệt thẻ.
+    var tool: String?
+    var summary: String?
+
+    /// nil = không phải sự kiện (là yêu cầu cấp quyền, hoặc dòng hỏng).
+    static func parse(_ line: [UInt8]) -> ClaudeEvent? {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+              let name = obj["hook_event_name"] as? String, name != ClaudeHookInstaller.event else { return nil }
+        var ev = ClaudeEvent(name: name, session: obj["session_id"] as? String ?? "")
+        if name == "PostToolUse", let tool = obj["tool_name"] as? String {
+            ev.tool = ClaudeRequest.displayName(tool)
+            ev.summary = ClaudeRequest.summary(tool: tool, input: obj["tool_input"] as? [String: Any] ?? [:])
+        }
+        return ev
+    }
+
+    /// Thẻ này đã được trả lời ở chỗ khác. Công cụ chạy xong: đúng công cụ và nội dung đó. Hết lượt: mọi thẻ của phiên.
+    func resolves(_ r: ClaudeRequest) -> Bool {
+        guard !session.isEmpty, r.session == session else { return false }
+        if name == "PostToolUse" { return r.tool == tool && r.summary == summary }
+        return ["Stop", "UserPromptSubmit", "SessionEnd"].contains(name)
+    }
+}
+
 /// Một yêu cầu cấp quyền đang chờ.
 struct ClaudeRequest: Identifiable, Equatable {
     let id = UUID()
@@ -38,6 +67,8 @@ struct ClaudeRequest: Identifiable, Equatable {
     var isPlan = false
     /// tool_input gốc. AskUserQuestion và ExitPlanMode phải gửi lại nó trong updatedInput, "allow" suông không đủ.
     var input: Data?
+    /// Phiên Claude Code (session_id): để nhận ra yêu cầu đã được trả lời ở chỗ khác.
+    var session = ""
 
     enum Decision: Equatable {
         case allow, allowAlways, deny, pass
@@ -54,6 +85,7 @@ struct ClaudeRequest: Identifiable, Equatable {
         var questions: [ClaudeQuestion] = []
         var isPlan = false
         var input: Data?
+        var session = ""
     }
 
     /// Đọc một dòng JSON hook gửi (đúng stdin của Claude Code).
@@ -70,7 +102,8 @@ struct ClaudeRequest: Identifiable, Equatable {
                       alwaysLabel: alwaysLabel(sugg),
                       suggestions: sugg.isEmpty ? nil : try? JSONSerialization.data(withJSONObject: sugg),
                       questions: questions, isPlan: isPlan,
-                      input: !questions.isEmpty || isPlan ? try? JSONSerialization.data(withJSONObject: input) : nil)
+                      input: !questions.isEmpty || isPlan ? try? JSONSerialization.data(withJSONObject: input) : nil,
+                      session: obj["session_id"] as? String ?? "")
     }
 
     static func questions(_ input: [String: Any]) -> [ClaudeQuestion] {
@@ -270,8 +303,12 @@ struct ClaudeUsage: Codable, Equatable {
 enum ClaudeHookInstaller {
     static let marker = "zmac-claude-hook"
     static let event = "PermissionRequest"
+    /// Sự kiện chỉ để biết yêu cầu đã được trả lời ở chỗ khác (terminal, VS Code), để gỡ thẻ trên notch.
+    static let watchEvents = ["PostToolUse", "Stop"]
     /// Giây. Hook tự thoát sau 520 s, trước khi Claude Code cắt.
     static let timeout = 540
+    /// Hook báo sự kiện chỉ gửi một dòng rồi thoát.
+    static let watchTimeout = 5
 
     enum State: Equatable { case notInstalled, installed, outdated }
 
@@ -281,7 +318,7 @@ enum ClaudeHookInstaller {
         return safe ? path : "'" + path.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
     }
 
-    private static func permissionCommands(_ settings: [String: Any]) -> [String] {
+    private static func commands(_ settings: [String: Any], _ event: String) -> [String] {
         let groups = (settings["hooks"] as? [String: Any])?[event] as? [Any] ?? []
         return groups
             .flatMap { ($0 as? [String: Any])?["hooks"] as? [Any] ?? [] }
@@ -289,12 +326,12 @@ enum ClaudeHookInstaller {
     }
 
     static func ourCommands(_ settings: [String: Any]) -> [String] {
-        permissionCommands(settings).filter { $0.contains(marker) }
+        commands(settings, event).filter { $0.contains(marker) }
     }
 
-    /// Hook duyệt quyền của app khác (vd Roost): cùng hiện yêu cầu với zMac.
+    /// Hook duyệt quyền của app khác: cùng hiện yêu cầu với zMac.
     static func otherPermissionHooks(_ settings: [String: Any]) -> [String] {
-        permissionCommands(settings).filter { !$0.contains(marker) }
+        commands(settings, event).filter { !$0.contains(marker) }
     }
 
     /// statusLine do một bản zMac thử nghiệm ghi (bản VS Code không chạy statusLine nên đã bỏ). Gặp thì dọn.
@@ -304,47 +341,65 @@ enum ClaudeHookInstaller {
 
     static func state(_ settings: [String: Any], path: String) -> State {
         let perm = ourCommands(settings)
+        let watched = watchEvents.map { e in commands(settings, e).filter { $0.contains(marker) } }
         let legacy = hasLegacyStatusLine(settings)
-        if perm.isEmpty && !legacy { return .notInstalled }
-        return perm == [command(for: path)] && !legacy ? .installed : .outdated
+        if perm.isEmpty && watched.allSatisfy(\.isEmpty) && !legacy { return .notInstalled }
+        let cmd = [command(for: path)]
+        return perm == cmd && watched.allSatisfy { $0 == cmd } && !legacy ? .installed : .outdated
     }
 
     private static func isOurs(_ hook: Any) -> Bool {
         ((hook as? [String: Any])?["command"] as? String)?.contains(marker) == true
     }
 
-    /// Bỏ mọi thứ zMac đã ghi, giữ nguyên phần còn lại. Nhóm / khoá chỉ bị xoá khi zMac làm nó rỗng.
+    /// Bỏ mọi thứ zMac đã ghi (ở mọi sự kiện), giữ nguyên phần còn lại. Nhóm / khoá chỉ bị xoá khi zMac làm nó rỗng.
     static func uninstall(_ settings: [String: Any]) -> [String: Any] {
         var s = settings
         if hasLegacyStatusLine(s) { s.removeValue(forKey: "statusLine") }
-        guard var hooks = s["hooks"] as? [String: Any], let groups = hooks[event] as? [Any] else { return s }
-        var kept: [Any] = []
+        guard var hooks = s["hooks"] as? [String: Any] else { return s }
         var changed = false
-        for g in groups {
-            guard var group = g as? [String: Any], let list = group["hooks"] as? [Any] else { kept.append(g); continue }
-            let rest = list.filter { !isOurs($0) }
-            if rest.count == list.count { kept.append(g); continue }
+        for (name, value) in hooks {
+            guard let groups = value as? [Any] else { continue }
+            var kept: [Any] = []
+            var touched = false
+            for g in groups {
+                guard var group = g as? [String: Any], let list = group["hooks"] as? [Any] else { kept.append(g); continue }
+                let rest = list.filter { !isOurs($0) }
+                if rest.count == list.count { kept.append(g); continue }
+                touched = true
+                if rest.isEmpty { continue }
+                group["hooks"] = rest
+                kept.append(group)
+            }
+            guard touched else { continue }
             changed = true
-            if rest.isEmpty { continue }
-            group["hooks"] = rest
-            kept.append(group)
+            if kept.isEmpty { hooks.removeValue(forKey: name) } else { hooks[name] = kept }
         }
         guard changed else { return s }
-        if kept.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = kept }
         if hooks.isEmpty { s.removeValue(forKey: "hooks") } else { s["hooks"] = hooks }
         return s
     }
 
-    /// Thêm đúng một hook của zMac (thay bản cũ nếu có). nil = file có cấu trúc lạ, không dám sửa.
+    /// Thêm hook của zMac (thay bản cũ nếu có). nil = file có cấu trúc lạ, không dám sửa.
     static func install(_ settings: [String: Any], path: String) -> [String: Any]? {
         if let h = settings["hooks"], !(h is [String: Any]) { return nil }
-        if let e = (settings["hooks"] as? [String: Any])?[event], !(e is [Any]) { return nil }
+        for e in [event] + watchEvents {
+            if let v = (settings["hooks"] as? [String: Any])?[e], !(v is [Any]) { return nil }
+        }
         var s = uninstall(settings)
         var hooks = s["hooks"] as? [String: Any] ?? [:]
-        var groups = hooks[event] as? [Any] ?? []
-        let hook: [String: Any] = ["type": "command", "command": command(for: path), "timeout": timeout]
-        groups.append(["matcher": "*", "hooks": [hook]] as [String: Any])
-        hooks[event] = groups
+        let cmd = command(for: path)
+        func add(_ e: String, _ group: [String: Any]) {
+            var groups = hooks[e] as? [Any] ?? []
+            groups.append(group)
+            hooks[e] = groups
+        }
+        add(event, ["matcher": "*", "hooks": [["type": "command", "command": cmd, "timeout": timeout] as [String: Any]]])
+        for e in watchEvents {
+            var group: [String: Any] = ["hooks": [["type": "command", "command": cmd, "timeout": watchTimeout] as [String: Any]]]
+            if e == "PostToolUse" { group["matcher"] = "*" }
+            add(e, group)
+        }
         s["hooks"] = hooks
         return s
     }
@@ -356,7 +411,7 @@ enum ClaudeHookInstaller {
 final class ClaudeModule: ZModule {
     static let id = "claude"
     static var name: String { "Claude Code" }
-    static let replaces = "Roost"
+    static let replaces = ""
     static let symbol = "sparkle"
     static var summary: String {
         L("Claude Code xin quyền chạy lệnh, sửa file thì notch mở ra để bạn Cho phép hoặc Từ chối. Notch còn hiện hạn mức 5 giờ và 7 ngày đã dùng.",
@@ -495,6 +550,15 @@ final class ClaudeModule: ZModule {
         let line = Array(client.buffer[..<nl])
         client.buffer = []
         client.hasRequest = true
+        // Sự kiện (không phải yêu cầu): gỡ các thẻ đã được trả lời ở chỗ khác, đóng kết nối, không trả lời gì.
+        if let ev = ClaudeEvent.parse(line) {
+            drop(fd)
+            for r in pending where ev.resolves(r) {
+                log.info("claude: \(ev.name, privacy: .public) gỡ thẻ \(r.tool, privacy: .public)")
+                finish(r.fd, .pass, suggestions: nil)
+            }
+            return
+        }
         #if DEBUG
         let headless = selfTestAnswer != nil
         #else
@@ -508,7 +572,7 @@ final class ClaudeModule: ZModule {
         }
         let request = ClaudeRequest(fd: fd, tool: p.tool, summary: p.summary, project: p.project,
                                     alwaysLabel: p.alwaysLabel, suggestions: p.suggestions,
-                                    questions: p.questions, isPlan: p.isPlan, input: p.input)
+                                    questions: p.questions, isPlan: p.isPlan, input: p.input, session: p.session)
         pending.append(request)
         log.info("claude: yêu cầu \(p.tool, privacy: .public)")
         notifyNotch()
@@ -549,7 +613,10 @@ final class ClaudeModule: ZModule {
     }
 
     private func notifyNotch() {
-        ModuleManager.shared.module(NotchModule.self)?.setClaudeAttention(!pending.isEmpty)
+        let notch = ModuleManager.shared.module(NotchModule.self)
+        notch?.setClaudeAttention(!pending.isEmpty)
+        // Thẻ câu hỏi / kế hoạch cần notch cao hơn thẻ duyệt thường.
+        notch?.refreshExpanded()
     }
 
     // MARK: Mức dùng
@@ -915,14 +982,16 @@ struct ClaudeRequestCard: View {
             Group {
                 if request.isPlan {
                     // Kế hoạch là Markdown nhiều dòng: cuộn được, chữ thường thay vì chữ máy.
-                    ScrollView {
-                        Text(Self.plainPlan(request.summary))
-                            .font(.system(size: 11))
-                            .lineSpacing(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    // Ngắn thì vừa khít, dài thì cuộn trong khung tối đa 100 điểm.
+                    let plan = Text(Self.plainPlan(request.summary))
+                        .font(.system(size: 11))
+                        .lineSpacing(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ViewThatFits(in: .vertical) {
+                        plan.fixedSize(horizontal: false, vertical: true)
+                        ScrollView { plan }.scrollIndicators(.never)
                     }
-                    .scrollIndicators(.never)
-                    .frame(maxHeight: 46)
+                    .frame(maxHeight: 100)
                 } else {
                     Text(request.summary.isEmpty ? request.tool : request.summary)
                         .font(.system(size: 11, design: .monospaced))
@@ -936,7 +1005,7 @@ struct ClaudeRequestCard: View {
             .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white.opacity(0.08)))
             .help(request.isPlan ? "" : request.summary)
             HStack(spacing: 6) {
-                Button(request.isPlan ? L("Xem trong terminal", "Review in terminal") : L("Hỏi trong terminal", "Ask in terminal")) {
+                Button(request.isPlan ? L("Xem trong Claude Code", "Review in Claude Code") : L("Hỏi trong Claude Code", "Ask in Claude Code")) {
                     module.respond(request, .pass)
                 }
                 .buttonStyle(.plain)
@@ -1007,10 +1076,10 @@ struct ClaudeQuestionCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 ZTile(symbol: "questionmark.bubble", hue: ZTheme.orange, size: 22)
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(q.question)
-                        .font(.system(size: 12, weight: .semibold))
-                        .lineLimit(2)
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                     Text([q.header, request.project].filter { !$0.isEmpty }.joined(separator: " · "))
                         .font(.system(size: 10.5))
@@ -1021,11 +1090,12 @@ struct ClaudeQuestionCard: View {
                 if qs.count > 1 { chip("\(i + 1)/\(qs.count)") }
                 if count > 1 { chip(L("còn \(count - 1)", "+\(count - 1) more")) }
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 6) {
+            // Ô vừa chữ, hết chỗ thì xuống hàng: không cắt nhãn thành "…" khi còn chỗ trống.
+            FlowLayout(spacing: 6) {
                 ForEach(q.options.indices, id: \.self) { k in option(q, page: i, index: k) }
             }
             HStack(spacing: 6) {
-                Button(L("Trả lời trong terminal", "Answer in terminal")) { module.respond(request, .pass) }
+                Button(L("Trả lời trong Claude Code", "Answer in Claude Code")) { module.respond(request, .pass) }
                     .buttonStyle(.plain)
                     .font(.system(size: 10.5))
                     .foregroundStyle(.white.opacity(0.5))
@@ -1057,19 +1127,19 @@ struct ClaudeQuestionCard: View {
                 advance(from: i)
             }
         } label: {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 5) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
                     if q.multiSelect {
                         Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 10.5))
                     }
-                    Text(o.label).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                    Text(o.label).font(.system(size: 11.5, weight: .semibold)).lineLimit(2)
                 }
-                // Có ô kèm mô tả thì ô nào cũng chừa một dòng, để các ô cao bằng nhau.
-                if q.options.contains(where: { !$0.detail.isEmpty }) {
-                    Text(o.detail.isEmpty ? " " : o.detail).font(.system(size: 9.5)).opacity(0.6).lineLimit(1)
+                if !o.detail.isEmpty {
+                    Text(o.detail).font(.system(size: 10)).opacity(0.62).lineLimit(2)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(on ? Color.white : Color.white.opacity(0.1)))
@@ -1094,6 +1164,60 @@ struct ClaudeQuestionCard: View {
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
             .background(Capsule().fill(.white.opacity(0.12)))
+    }
+}
+
+/// Xếp các ô theo hàng, hết chỗ thì xuống hàng. Ô rộng vừa chữ (tối đa `maxItemWidth`, chữ dài thì xuống dòng),
+/// các ô trong cùng một hàng cao bằng nhau.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+    var maxItemWidth: CGFloat = 300
+
+    private struct Row {
+        var items: [(index: Int, size: CGSize)] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 600
+        let rows = arrange(width, subviews)
+        let height = rows.reduce(0) { $0 + $1.height } + spacing * CGFloat(max(rows.count - 1, 0))
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(bounds.width, subviews) {
+            var x = bounds.minX
+            for item in row.items {
+                subviews[item.index].place(at: CGPoint(x: x, y: y),
+                                           proposal: ProposedViewSize(width: item.size.width, height: row.height))
+                x += item.size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private func arrange(_ maxWidth: CGFloat, _ subviews: Subviews) -> [Row] {
+        var rows: [Row] = []
+        var row = Row()
+        let cap = min(maxItemWidth, max(maxWidth, 1))
+        for i in subviews.indices {
+            let ideal = subviews[i].sizeThatFits(.unspecified)
+            let w = min(ideal.width, cap)
+            let size = w < ideal.width ? CGSize(width: w, height: subviews[i].sizeThatFits(ProposedViewSize(width: w, height: nil)).height)
+                                       : ideal
+            if !row.items.isEmpty && row.width + spacing + size.width > maxWidth {
+                rows.append(row)
+                row = Row()
+            }
+            row.width += (row.items.isEmpty ? 0 : spacing) + size.width
+            row.height = max(row.height, size.height)
+            row.items.append((i, size))
+        }
+        if !row.items.isEmpty { rows.append(row) }
+        return rows
     }
 }
 
@@ -1155,10 +1279,16 @@ extension ClaudeModule {
 
     /// Thẻ câu hỏi (AskUserQuestion) và thẻ kế hoạch (ExitPlanMode).
     func previewQuestion() {
-        let q = ClaudeQuestion(question: "Trang giới thiệu nên dùng khung nào?", header: "Khung", options: [
-            .init(label: "HTML tĩnh", detail: "Nhẹ nhất, deploy Vercel"), .init(label: "Astro", detail: "Có component"),
-            .init(label: "Next.js", detail: "Nặng hơn"), .init(label: "SvelteKit", detail: ""),
-        ], multiSelect: false)
+        // Câu dài, nhãn dài như một câu hỏi thật của Claude Code: kiểm tra chữ xuống dòng, không bị cắt.
+        let q = ClaudeQuestion(
+            question: "Bản 0.2.0, mục Phiên bản trên web và cask Homebrew đã sẵn sàng ở máy. Lệnh `brew install --cask kienhungpg/tap/zmac` chỉ chạy được khi có GitHub Release v0.2.0 (kèm zMac.dmg) và repo công khai KienHungPG/homebrew-tap. Mình phát hành thế nào?",
+            header: "Phát hành", options: [
+                .init(label: "Phát hành tất cả (Recommended)",
+                      detail: "Commit theo từng nhóm rồi push zMac, tạo GitHub Release v0.2.0 kèm zMac.dmg, tạo repo homebrew-tap."),
+                .init(label: "Chỉ commit và push zMac",
+                      detail: "Trang web lên bản mới nhưng lệnh brew sẽ báo lỗi cho tới khi có release và repo tap."),
+                .init(label: "Chưa đẩy gì", detail: "Giữ mọi thay đổi ở máy để bạn xem trước."),
+            ], multiSelect: false)
         let parts = ClaudeQuestion(question: "Thêm những phần nào?", header: "Phần", options: [
             .init(label: "Demo", detail: ""), .init(label: "Bảng giá", detail: ""), .init(label: "FAQ", detail: ""),
         ], multiSelect: true)

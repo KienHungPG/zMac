@@ -1,8 +1,10 @@
 import Darwin
 import Foundation
 
-// zmac-claude-hook: hook PermissionRequest của Claude Code.
-// Chuyển yêu cầu cấp quyền tới zMac qua Unix socket rồi chờ người dùng bấm trên notch.
+// zmac-claude-hook: hook của Claude Code.
+// - PermissionRequest: chuyển yêu cầu cấp quyền tới zMac qua Unix socket rồi chờ người dùng bấm trên notch.
+// - PostToolUse, Stop: chỉ báo cho zMac (không chờ, không in gì) để gỡ thẻ của yêu cầu đã được trả lời ở chỗ khác
+//   (terminal, VS Code). Claude Code không dừng hook PermissionRequest khi người dùng trả lời trong giao diện của nó.
 // zMac không chạy, không trả lời, hay có lỗi gì: thoát 0 và không in gì, Claude Code hỏi trong terminal như cũ.
 // Không bao giờ in quyết định nếu người dùng chưa bấm Cho phép / Từ chối.
 
@@ -48,10 +50,30 @@ let input = FileHandle.standardInput.readDataToEndOfFile()
 // Bản thử nghiệm từng ghi "zmac-claude-hook --statusline" vào statusLine. Gặp thì thoát êm (Cập nhật kết nối sẽ gỡ).
 if args.count > 1, args[1] == "--statusline" { quietExit() }
 
+guard !input.isEmpty, let request = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any] else { quietExit() }
+
+// MARK: PostToolUse, Stop: báo rồi thoát
+
+if let event = request["hook_event_name"] as? String, event != "PermissionRequest" {
+    // Chỉ gửi phần zMac cần để nhận ra yêu cầu: bỏ tool_response (có thể rất lớn), cắt chuỗi dài trong tool_input.
+    var slim: [String: Any] = ["hook_event_name": event]
+    for key in ["session_id", "tool_name", "cwd"] { slim[key] = request[key] }
+    if let toolInput = request["tool_input"] as? [String: Any] {
+        slim["tool_input"] = toolInput.mapValues { v -> Any in
+            if let s = v as? String, s.count > 4000 { return String(s.prefix(4000)) }
+            return v
+        }
+    }
+    if let data = try? JSONSerialization.data(withJSONObject: slim), let fd = connectToZMac() {
+        _ = sendLine(fd, data)
+        close(fd)
+    }
+    quietExit()
+}
+
 // MARK: PermissionRequest
 
-guard !input.isEmpty, (try? JSONSerialization.jsonObject(with: input)) is [String: Any],
-      let fd = connectToZMac() else { quietExit() }
+guard let fd = connectToZMac() else { quietExit() }
 var tv = timeval(tv_sec: waitSeconds, tv_usec: 0)
 setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
 guard sendLine(fd, input) else { quietExit() }

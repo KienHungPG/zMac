@@ -308,7 +308,7 @@ struct UpdateSection: View {
                 Text(L("Kiểm tra hỏi api.github.com; bản mới tải từ github.com và chỉ được cài khi chữ ký Ed25519 khớp khoá gắn trong app. Cài bằng Homebrew thì cập nhật bằng brew upgrade --cask zmac.",
                        "Checks ask api.github.com; updates download from github.com and only install if their Ed25519 signature matches the key built into the app. Installed with Homebrew? Use brew upgrade --cask zmac."))
                     .font(.caption).foregroundStyle(.secondary)
-                if let url = URL(string: "https://zmac-website.vercel.app/#changelog") {
+                if let url = URL(string: "https://zmac.vercel.app/#changelog") {
                     Link(L("Có gì mới ở từng bản", "What's new in each version"), destination: url)
                         .font(.caption)
                 }

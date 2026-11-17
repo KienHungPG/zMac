@@ -156,6 +156,7 @@ final class NotchModule: ZModule {
         alert = nil
         closePanel()
         NotchIcons.cache.removeAll()
+        NotchIcons.names.removeAll()
         lyrics.clear()
         track = nil
         hasTarget = false
@@ -246,11 +247,24 @@ final class NotchModule: ZModule {
     }
 
     var expandedSize: CGSize {
+        let height = notchHeight + 150 + claudeExtraHeight
         // Có cột lịch bên phải: rộng hơn, hàng trên cũng đủ chỗ cho "5h ·· 7d ··".
-        if showsCalendar { return CGSize(width: max(720, notchWidth + 500), height: notchHeight + 150) }
+        if showsCalendar { return CGSize(width: max(720, notchWidth + 500), height: height) }
         // Hàng trên bên phải có thêm "5h ·· 7d ··" thì nới rộng cho đủ chỗ.
         let extra: CGFloat = showsClaudeUsage ? 100 : 0
-        return CGSize(width: max(540 + extra, notchWidth + 300 + extra), height: notchHeight + 150)
+        return CGSize(width: max(540 + extra, notchWidth + 300 + extra), height: height)
+    }
+
+    /// Claude hỏi lại (câu hỏi dài, nhiều lựa chọn) hay xin duyệt kế hoạch: notch cao thêm cho đủ chữ.
+    var claudeExtraHeight: CGFloat {
+        guard let r = ModuleManager.shared.module(ClaudeModule.self)?.pending.first else { return 0 }
+        if !r.questions.isEmpty { return 80 }
+        return r.isPlan ? 60 : 0
+    }
+
+    /// Thẻ Claude đổi: đang mở thì đổi kích thước theo.
+    func refreshExpanded() {
+        if open { updateLayout() }
     }
 
     var calendar: CalendarModule? { ModuleManager.shared.module(CalendarModule.self) }
@@ -517,6 +531,9 @@ final class NotchModule: ZModule {
     }
 
     func nextTrack() { nowPlaying.send(.next) }
+
+    var canSeek: Bool { nowPlaying.canSeek }
+    func seek(to seconds: Double) { nowPlaying.seek(to: seconds) }
     func previousTrack() { nowPlaying.send(.previous) }
 
     func openPlayer() {

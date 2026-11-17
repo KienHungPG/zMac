@@ -54,7 +54,7 @@ struct PetStats: Codable, Equatable {
 final class PetModule: ZModule {
     static let id = "pet"
     static var name: String { L("Thú cưng", "Pet") }
-    static let replaces = "Roost"
+    static let replaces = ""
     static let symbol = "pawprint.fill"
     static var summary: String {
         L("Một thú cưng pixel sống ở notch: cho ăn, vuốt ve, chơi cùng để lên cấp. zMac tự vẽ, chỉ chuyển động khi bạn đang nhìn.",

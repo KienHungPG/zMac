@@ -364,7 +364,8 @@ struct NotchExpandedView: View {
             .padding(.horizontal, 24)
             .padding(.top, 8)
             .padding(.bottom, 16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Thẻ Claude cao thấp theo nội dung: bám lên trên, không treo lửng giữa notch.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: claude == nil ? .center : .top)
         }
         .foregroundStyle(.white)
     }
@@ -494,61 +495,171 @@ struct NotchNowPlayingView: View {
     }
 
     @ViewBuilder private var player: some View {
-        let tint = ArtworkColor.of(model.track?.artwork)
+        let track = model.track
+        let tint = ArtworkColor.of(track?.artwork)
         HStack(spacing: 18) {
-            Button { model.openPlayer() } label: {
-                NotchArtwork(track: model.track, size: 92, corner: 16)
-                    .shadow(color: tint.opacity(model.track?.artwork == nil ? 0 : 0.55), radius: 18)
-            }
-            .buttonStyle(.plain)
-            .help(L("Mở trình phát", "Open player"))
+            Button { model.openPlayer() } label: { NotchCover(track: track, tint: tint) }
+                .buttonStyle(.plain)
+                .help(L("Mở trình phát", "Open player"))
 
-            VStack(alignment: .leading, spacing: 2) {
-                if let t = model.track {
-                    HStack(alignment: .top, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(t.title).font(.system(size: 15, weight: .bold)).lineLimit(1)
-                            Text(t.artist.isEmpty ? t.album : t.artist)
-                                .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .top, spacing: 8) {
+                    if let t = track {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 8) {
+                                Text(t.title).font(.system(size: 15.5, weight: .bold)).lineLimit(1)
+                                // Sóng nhạc Core Animation: chạy khi đang phát, 0% CPU.
+                                PlayingBars(color: NSColor(tint), playing: t.isPlaying)
+                                    .frame(width: 13, height: 12)
+                                    .opacity(t.isPlaying ? 1 : 0.5)
+                            }
+                            Text(Self.subtitle(t))
+                                .font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
                         }
-                        Spacer(minLength: 0)
-                        LyricsToggle(model: model)
+                    } else {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L("Chưa có nhạc đang phát", "Nothing playing")).font(.system(size: 15, weight: .bold))
+                            Text(L("Phát nhạc ở bất kỳ app nào, kể cả trình duyệt, bài sẽ hiện ở đây.",
+                                   "Play something in any app, browsers included, and it shows up here."))
+                                .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                } else {
-                    Text(L("Chưa có nhạc đang phát", "Nothing playing")).font(.system(size: 15, weight: .bold))
-                    Text(L("Phát nhạc ở bất kỳ app nào, kể cả trình duyệt, bài sẽ hiện ở đây.",
-                           "Play something in any app, browsers included, and it shows up here."))
-                        .font(.system(size: 11.5)).foregroundStyle(.white.opacity(0.5))
-                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    if track != nil { LyricsToggle(model: model) }
                 }
-                Spacer(minLength: 6)
-                HStack(spacing: 14) {
-                    NotchControl(symbol: "backward.fill", size: 15) { model.previousTrack() }
+                Spacer(minLength: 8)
+                if let t = track {
+                    NotchScrubber(track: t, tint: tint, onSeek: model.canSeek ? { model.seek(to: $0) } : nil)
+                }
+                HStack(spacing: 26) {
+                    NotchControl(symbol: "backward.fill", size: 16) { model.previousTrack() }
                     Button { model.playPause() } label: {
-                        Image(systemName: model.track?.isPlaying == true ? "pause.fill" : "play.fill")
-                            .font(.system(size: 16, weight: .bold))
+                        Image(systemName: track?.isPlaying == true ? "pause.fill" : "play.fill")
+                            .font(.system(size: 17, weight: .bold))
                             .foregroundStyle(.black)
-                            .frame(width: 38, height: 38)
+                            .frame(width: 40, height: 40)
                             .background(Circle().fill(.white))
+                            .shadow(color: tint.opacity(track?.artwork == nil ? 0 : 0.5), radius: 10)
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
-                    NotchControl(symbol: "forward.fill", size: 15) { model.nextTrack() }
-                    Spacer()
+                    NotchControl(symbol: "forward.fill", size: 16) { model.nextTrack() }
                 }
-                if let t = model.track { NotchProgress(track: t, tint: tint).padding(.top, 6) }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+                .opacity(track == nil ? 0.4 : 1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(alignment: .leading) {
-            // Quầng sáng theo màu ảnh bìa.
-            if model.track?.artwork != nil {
-                RadialGradient(colors: [tint.opacity(0.32), .clear], center: .center, startRadius: 0, endRadius: 170)
-                    .frame(width: 340, height: 260)
-                    .offset(x: -110)
+            // Nền là chính ảnh bìa, làm mờ và mờ dần ra mép: màu của bài trải ra cả khung. Ảnh tĩnh, chỉ vẽ khi notch mở.
+            if let art = track?.artwork {
+                Image(nsImage: art)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 360, height: 220)
+                    .blur(radius: 46)
+                    .saturation(1.3)
+                    .opacity(0.55)
+                    .mask(RadialGradient(colors: [.black, .black.opacity(0.4), .clear], center: .center, startRadius: 30, endRadius: 190))
+                    .offset(x: -70)
                     .allowsHitTesting(false)
             }
         }
+    }
+
+    /// "Ca sĩ · Spotify": thêm tên app đang phát cho dễ biết nhạc từ đâu.
+    static func subtitle(_ t: NowPlayingTrack) -> String {
+        let who = t.artist.isEmpty ? t.album : t.artist
+        guard let app = NotchIcons.name(for: t.bundleID) else { return who }
+        return who.isEmpty ? app : "\(who) · \(app)"
+    }
+}
+
+/// Ảnh bìa lớn, bo góc, quầng sáng theo màu bài, icon app nguồn ở góc dưới.
+struct NotchCover: View {
+    let track: NowPlayingTrack?
+    let tint: Color
+
+    var body: some View {
+        NotchArtwork(track: track, size: 96, corner: 18)
+            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.08), lineWidth: 1))
+            .shadow(color: tint.opacity(track?.artwork == nil ? 0 : 0.6), radius: 20, y: 4)
+            .overlay(alignment: .bottomTrailing) {
+                if track?.artwork != nil, let icon = NotchIcons.icon(for: track?.bundleID) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(.black).padding(-2))
+                        .offset(x: 7, y: 7)
+                }
+            }
+    }
+}
+
+/// Thanh tiến độ kéo được để tua (khi trình phát cho phép). Rê chuột vào thì dày lên và hiện núm.
+/// TimelineView chỉ chạy khi notch đang mở và đang phát (bị huỷ cùng cây view khi thu gọn).
+struct NotchScrubber: View {
+    let track: NowPlayingTrack
+    let tint: Color
+    let onSeek: ((Double) -> Void)?
+    @State private var hover = false
+    /// 0...1 trong lúc kéo.
+    @State private var drag: Double?
+
+    var body: some View {
+        if let d = track.duration, d > 0, track.position != nil {
+            if track.isPlaying && drag == nil {
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in bar(track.elapsed(at: ctx.date) ?? 0, d) }
+            } else {
+                bar(drag.map { $0 * d } ?? (track.elapsed(at: Date()) ?? 0), d)
+            }
+        } else if let d = track.duration, d > 0 {
+            Text(NotchProgress.format(d)).font(.system(size: 10).monospacedDigit()).foregroundStyle(.white.opacity(0.5))
+        }
+    }
+
+    private func bar(_ elapsed: Double, _ duration: Double) -> some View {
+        let frac = min(max(drag ?? elapsed / duration, 0), 1)
+        let active = onSeek != nil && (hover || drag != nil)
+        return HStack(spacing: 8) {
+            Text(NotchProgress.format(elapsed)).frame(width: 34, alignment: .leading)
+            GeometryReader { g in
+                let h: CGFloat = active ? 6 : 4
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.16)).frame(height: h)
+                    Capsule()
+                        .fill(LinearGradient(colors: [tint.opacity(0.95), .white], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(h, g.size.width * frac), height: h)
+                    if active {
+                        Circle().fill(.white)
+                            .frame(width: 12, height: 12)
+                            .shadow(color: .black.opacity(0.4), radius: 2)
+                            .offset(x: g.size.width * frac - 6)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 0)
+                    .onChanged { v in
+                        guard onSeek != nil, g.size.width > 0 else { return }
+                        drag = min(max(v.location.x / g.size.width, 0), 1)
+                    }
+                    .onEnded { v in
+                        guard let onSeek, g.size.width > 0 else { return }
+                        onSeek(min(max(v.location.x / g.size.width, 0), 1) * duration)
+                        drag = nil
+                    })
+            }
+            .frame(height: 14)
+            .onHover { hover = $0 }
+            Text("-" + NotchProgress.format(max(duration - elapsed, 0))).frame(width: 40, alignment: .trailing)
+        }
+        .font(.system(size: 10).monospacedDigit())
+        .foregroundStyle(.white.opacity(0.55))
+        .animation(.easeOut(duration: 0.12), value: active)
+        .help(onSeek == nil ? "" : L("Kéo để tua", "Drag to seek"))
     }
 }
 
@@ -615,6 +726,18 @@ enum NotchIcons {
         let img = NSWorkspace.shared.icon(forFile: url.path)
         cache[id] = img
         return img
+    }
+
+    @MainActor static var names: [String: String] = [:]
+
+    /// Tên hiển thị của app ("Spotify", "Brave Browser").
+    @MainActor static func name(for bundleID: String?) -> String? {
+        guard let id = bundleID, !id.isEmpty else { return nil }
+        if let n = names[id] { return n }
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) else { return nil }
+        let n = FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+        names[id] = n
+        return n
     }
 }
 

@@ -87,11 +87,18 @@ final class NowPlayingAdapter {
     }
 
     /// Gửi lệnh thẳng tới trình phát đang "Now Playing" (kể cả trình duyệt). Tiến trình ngắn, tự thoát.
-    func send(_ command: Command) -> Bool {
+    func send(_ command: Command) -> Bool { run(["send", String(command.rawValue)]) }
+
+    /// Tua tới `seconds` giây trong bài.
+    func seek(_ seconds: Double) -> Bool { run(["seek", String(Int64(max(seconds, 0) * 1_000_000))]) }
+
+    var canControl: Bool { live && Self.paths != nil }
+
+    private func run(_ args: [String]) -> Bool {
         guard live, let p = Self.paths else { return false }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: Self.perl)
-        proc.arguments = [p.script, p.framework, "send", String(command.rawValue)]
+        proc.arguments = [p.script, p.framework] + args
         proc.standardOutput = FileHandle.nullDevice
         proc.standardError = FileHandle.nullDevice
         proc.terminationHandler = { [weak self] p in
