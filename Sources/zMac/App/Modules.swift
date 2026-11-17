@@ -76,7 +76,7 @@ final class ModuleManager {
         "display": ["BetterDisplay", "MonitorControl", "HyperMac"],
         "battery": ["AlDente", "HyperMac"],
         "audio": ["FineTune", "SoundSource"],
-        "notch": ["NotchNook", "Roost", "Notch", "Alcove", "boring.notch"],
+        "notch": ["NotchNook", "Notch", "Alcove", "boring.notch"],
     ]
 
     /// App xung đột đang chạy (đọc khi mở trang Cài đặt, không theo dõi nền).

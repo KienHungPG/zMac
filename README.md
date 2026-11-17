@@ -25,7 +25,7 @@ Một app menu bar cho macOS gộp 7 app thành một, viết để nhẹ nhất
 | Kích thước app | 2,1 MB (app + daemon) |
 | Liệt kê cửa sổ cho ⌥Tab | 4,4 ms cho 11 cửa sổ từ 9 app |
 
-Cùng máy, cùng lúc, các app gốc đang chạy: AltTab 307 MB, Maccy 295 MB, Roost 112 MB, NotchNook 50 MB.
+Cùng máy, cùng lúc, các app gốc đang chạy: AltTab 307 MB, Maccy 295 MB, NotchNook 50 MB.
 So sánh này chưa hoàn toàn ngang nhau: AltTab giữ ảnh chụp cửa sổ, Maccy giữ lịch sử của bạn, còn lịch sử của zMac lúc đo đang rỗng.
 
 Vì sao nhẹ (chi tiết ở [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
@@ -94,7 +94,6 @@ sudo rm -f /Library/PrivilegedHelperTools/com.zmac.helper /Library/LaunchDaemons
 ## Tham khảo
 
 - [HyperMac](https://github.com/mrgoose000000-gif/HyperMac) (GPL-3.0): tham khảo cách dùng các key SMC, không chép code.
-- [notch-app / Roost](https://github.com/letoan1/notch-app) (MIT): cách làm âm lượng từng app bằng process tap, ghi công trong `AudioTap.swift`.
 - yabai (MIT): cách đưa đúng một cửa sổ lên trước bằng SkyLight.
 - MonitorControl (MIT): định dạng gói DDC/CI trên Apple Silicon.
 

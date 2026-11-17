@@ -7,12 +7,13 @@
 <title data-en="zMac: one light menu bar app for your Mac">zMac: một app menu bar nhẹ cho Mac</title>
 <meta name="description" content="zMac gộp chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app và notch vào một app menu bar khoảng 20 MB RAM. Miễn phí, mã nguồn mở." data-en-content="zMac puts window switching, window snapping, clipboard history, display brightness, charge limiting, per-app volume and the notch into one menu bar app that uses about 20 MB of memory. Free and open source.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#1b1d3d">
+<meta name="theme-color" content="#14162e">
 <meta property="og:type" content="website">
 <meta property="og:title" content="zMac">
-<meta property="og:description" content="Cả dãy app menu bar, gộp vào một. Khoảng 20 MB RAM." data-en-content="A whole row of menu bar apps, folded into one. About 20 MB of memory.">
+<meta property="og:description" content="Cả dãy app menu bar, gộp vào một. Khoảng 20 MB RAM. Miễn phí, mã nguồn mở." data-en-content="A whole row of menu bar apps, folded into one. About 20 MB of memory. Free and open source.">
 <link rel="icon" href="assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <script src="main.js" defer></script>
 </head>
@@ -25,13 +26,44 @@
   <symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
   <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.5"/><path d="M21.5 10.5v3M6 10.5h7v3H6z"/></symbol>
   <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13L7 14.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13L7 14.5H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></symbol>
   <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5V6M12 3.5V6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
   <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 15.8a5 5 0 0 1 6.8 0M12 19h.01"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
   <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M7 14h10"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
   <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8 8"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 5 3 3v2H7v-2l3-3zM12 14v6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 6v12l-8.5-6zM6 6v12"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 6v12l8.5-6zM18 6v12"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/></symbol>
+  <symbol id="i-game" viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="10" rx="5"/><path d="M7 10v4M5 12h4M15.5 11h.01M18 13h.01"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15H17"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16zM14 6l3 3"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><path d="M8 10a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0zM12 10v8M4 13h4M16 13h4M5.5 8l2.7 1.8M18.5 8l-2.7 1.8M5.5 19l2.7-1.8M18.5 19l-2.7-1.8M9.5 6.5 8 4.5M14.5 6.5 16 4.5"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.1v.1h5v-.1c0-.8.4-1.6 1.1-2.1A6 6 0 0 0 12 3z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3.5v8M7 6.5a7.5 7.5 0 1 0 10 0"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5 3 8l9 4.5L21 8zM3 12.5l9 4.5 9-4.5M3 16.5l9 4.5 9-4.5"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M9 9l6 6M15 9l-6 6"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0M12 17l4-5"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3.5h7l4.5 4.5V20a.5.5 0 0 1-.5.5H7a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5zM13.5 3.5v5h5"/></symbol>
 </svg>
 
 <a class="skip" href="#main" data-en="Skip to content">Bỏ qua đến nội dung</a>
@@ -40,13 +72,14 @@
   <div class="wrap nav-in">
     <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="28" height="28"><span>zMac</span></a>
     <nav class="links" aria-label="Mục lục" data-en-label="Sections">
-      <a href="#modules" data-en="Features">Tính năng</a>
+      <a href="#modules" data-en="Try it">Thử ngay</a>
       <a href="#light" data-en="Lightweight">Nhẹ</a>
       <a href="#install" data-en="Install">Cài đặt</a>
       <a href="#privacy" data-en="Privacy">Riêng tư</a>
       <a href="#faq" data-en="FAQ">Hỏi đáp</a>
       <a href="https://github.com/KienHungPG/zMac">GitHub</a>
     </nav>
+    <button class="theme" id="theme" type="button" aria-label="Chuyển sang giao diện tối"><svg class="i"><use href="#i-moon"/></svg></button>
     <button class="lang" id="lang" type="button" aria-label="Switch to English">EN</button>
     <a class="btn btn-sm" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download">Tải về</span></a>
   </div>
@@ -55,155 +88,290 @@
 <main id="main">
 
 <section class="hero" id="top">
-  <div class="wrap">
-    <div class="stage">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="ztiles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span data-en="Menu bar app for macOS">App menu bar cho macOS</span></p>
-        <h1 data-en="A whole row of menu bar apps,<br>folded into one.">Cả dãy app menu bar,<br>gộp vào một.</h1>
-        <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process. All 8 modules on, Mac idle: about 20 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình. Bật đủ 8 module, máy rảnh: khoảng 20 MB RAM. Miễn phí, mã nguồn mở.</p>
-        <div class="cta-row">
-          <a class="btn btn-lg" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
-          <a class="ghost" href="#install" data-en="How to install">Cách cài</a>
-          <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
-        </div>
-        <p class="meta"><span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="size">2,1 MB</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
-      </div>
-
-      <div class="mock" aria-hidden="true">
-        <div class="menubar">
-          <span class="mb-ghost"><i></i><i></i><i></i></span>
-          <span class="mb-old">
-            <svg class="i"><use href="#i-switch"/></svg><svg class="i"><use href="#i-snap"/></svg><svg class="i"><use href="#i-clip"/></svg><svg class="i"><use href="#i-display"/></svg><svg class="i"><use href="#i-battery"/></svg><svg class="i"><use href="#i-sound"/></svg><svg class="i"><use href="#i-notch"/></svg><svg class="i"><use href="#i-cup"/></svg>
-          </span>
-          <span class="mb-z"><span class="ztiles"><i></i><i></i><i></i><i></i></span></span>
-          <svg class="i"><use href="#i-wifi"/></svg>
-          <svg class="i"><use href="#i-battery"/></svg>
-          <span class="mb-clock">08:30</span>
-        </div>
-        <div class="pop">
-          <div class="pop-h"><b>zMac</b><span>18 MB</span></div>
-          <div class="pop-row">
-            <span class="tile c-o"><svg class="i"><use href="#i-sun"/></svg></span>
-            <div class="grow"><div class="pop-l"><span>LG TV</span><em>60%</em></div><div class="slider"><b class="w60"></b></div></div>
-          </div>
-          <div class="pop-row">
-            <span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span>
-            <div class="grow"><div class="pop-l"><span data-en="Battery 82%">Pin 82%</span><em data-en="stops at 80%">dừng ở 80%</em></div><div class="slider"><b class="w80"></b></div></div>
-          </div>
-          <div class="pop-row">
-            <span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span>
-            <div class="grow"><div class="pop-l"><span>Spotify</span><em>70%</em></div><div class="slider"><b class="w70"></b></div></div>
-          </div>
-          <div class="pop-row">
-            <span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span>
-            <div class="grow pop-l"><span data-en="Keep awake">Giữ máy thức</span><em data-en="54 min left">còn 54 phút</em></div>
-            <span class="toggle"></span>
-          </div>
-        </div>
-      </div>
+  <div class="wrap hero-copy">
+    <img class="hero-icon" src="assets/icon.png" alt="" width="104" height="104">
+    <h1 data-en="A whole row of menu bar apps,<br>folded into one.">Cả dãy app menu bar,<br>gộp vào một.</h1>
+    <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process, in about 20 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình, chỉ khoảng 20 MB RAM. Miễn phí, mã nguồn mở.</p>
+    <div class="cta-row">
+      <a class="btn btn-lg btn-light" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
+      <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
     </div>
+    <p class="meta"><span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="size">1,7 MB</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
   </div>
-</section>
 
-<section id="modules" class="sec">
-  <div class="wrap">
-    <div class="sec-head">
-      <p class="eyebrow" data-en="8 modules, 1 process">8 module, 1 tiến trình</p>
-      <h2 data-en="Everything you kept<br>in the menu bar.">Những thứ bạn vẫn<br>để trên menu bar.</h2>
-      <p class="sub" data-en="Turn off what you don't need. A module that's off is never created, so it costs no memory. Modules that don't fit your Mac, like charge limiting on a desktop, hide themselves.">Không cần thì tắt. Module tắt không được tạo ra nên không tốn RAM. Module không hợp máy, như giới hạn sạc trên Mac để bàn, tự ẩn đi.</p>
+  <div class="wrap show" id="modules">
+    <div class="mac">
+      <div class="bezel">
+        <div class="screen" id="screen" data-active="overview" role="tabpanel" aria-labelledby="tab-overview">
+          <div class="scr">
+            <div class="wall" aria-hidden="true"></div>
+
+            <div class="menubar" aria-hidden="true">
+              <span class="mb-left"><b>Finder</b><span data-en="File">Tệp</span><span data-en="Edit">Sửa</span><span class="mb-x" data-en="View">Xem</span><span class="mb-x" data-en="Window">Cửa sổ</span></span>
+              <span class="mb-right">
+                <span class="mb-old"><svg class="i"><use href="#i-switch"/></svg><svg class="i"><use href="#i-snap"/></svg><svg class="i"><use href="#i-clip"/></svg><svg class="i"><use href="#i-display"/></svg><svg class="i"><use href="#i-battery"/></svg><svg class="i"><use href="#i-sound"/></svg><svg class="i"><use href="#i-notch"/></svg><svg class="i"><use href="#i-cup"/></svg></span>
+                <span class="mb-z"><span class="ztiles"><i></i><i></i><i></i><i></i></span></span>
+                <svg class="i"><use href="#i-wifi"/></svg>
+                <svg class="i"><use href="#i-battery"/></svg>
+                <span class="mb-clock">08:30</span>
+              </span>
+            </div>
+
+            <!-- Notch: dùng chung, chỉ tương tác trong demo Notch -->
+            <div class="notch" id="notch" tabindex="-1" aria-label="Notch">
+              <div class="n-charge" aria-hidden="true"><span class="n-bolt"><svg class="i f"><use href="#i-bolt"/></svg><span data-en="Charging">Đang sạc</span></span><b>82%</b></div>
+              <div class="n-open">
+                <div class="np">
+                  <span class="tile c-g np-app"><svg class="i"><use href="#i-music"/></svg></span>
+                  <div class="np-t"><b id="np-title">Quiet Harbor</b><span id="np-artist">Lumen Drift</span></div>
+                  <div class="np-ctl">
+                    <button type="button" id="np-prev" aria-label="Bài trước" data-en-label="Previous track"><svg class="i f"><use href="#i-prev"/></svg></button>
+                    <button type="button" id="np-play" aria-label="Phát / tạm dừng" data-en-label="Play / pause"><svg class="i f"><use href="#i-pause"/></svg></button>
+                    <button type="button" id="np-next" aria-label="Bài sau" data-en-label="Next track"><svg class="i f"><use href="#i-next"/></svg></button>
+                  </div>
+                  <div class="np-bar"><span id="np-cur">0:42</span><i><b id="np-prog"></b></i><span id="np-len">3:05</span></div>
+                </div>
+                <div class="shelf">
+                  <span class="sh-l" data-en="File shelf">Kệ file</span>
+                  <div class="sh-files"><span class="file"><svg class="i"><use href="#i-file"/></svg>bao-cao.pdf</span><span class="file"><svg class="i"><use href="#i-image"/></svg>anh-bia.png</span><span class="file drop" data-en="Drop here">Thả vào đây</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tổng quan -->
+            <div class="demo on" id="demo-overview" data-demo="overview">
+              <div class="widget glass" aria-hidden="true">
+                <span class="w-h"><span class="ztiles"><i></i><i></i><i></i><i></i></span>zMac</span>
+                <div class="w-row"><span data-en="Memory">Bộ nhớ</span><b>18 MB</b></div>
+                <div class="w-row"><span>CPU</span><b data-en="0.0%">0,0%</b></div>
+                <div class="w-row"><span data-en="Modules">Module</span><b>8 / 8</b></div>
+              </div>
+              <div class="pop glass">
+                <div class="pop-h"><b>zMac</b><span data-en="Tap a row to try it">Bấm để thử</span></div>
+                <button class="pop-row" type="button" data-go="display">
+                  <span class="tile c-o"><svg class="i"><use href="#i-sun"/></svg></span>
+                  <span class="grow"><span class="pop-l"><span>LG TV</span><em>60%</em></span><span class="slider"><b class="w60"></b></span></span>
+                </button>
+                <button class="pop-row" type="button" data-go="battery">
+                  <span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span>
+                  <span class="grow"><span class="pop-l"><span data-en="Battery 82%">Pin 82%</span><em data-en="stops at 80%">dừng ở 80%</em></span><span class="slider"><b class="w80"></b></span></span>
+                </button>
+                <button class="pop-row" type="button" data-go="sound">
+                  <span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span>
+                  <span class="grow"><span class="pop-l"><span data-en="Music">Nhạc</span><em>70%</em></span><span class="slider"><b class="w70"></b></span></span>
+                </button>
+                <button class="pop-row" type="button" data-go="keepawake">
+                  <span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span>
+                  <span class="grow pop-l"><span data-en="Keep awake">Giữ máy thức</span><em data-en="54 min left">còn 54 phút</em></span>
+                  <span class="toggle"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Chuyển cửa sổ -->
+            <div class="demo" id="demo-switcher" data-demo="switcher">
+              <div class="win sw-win w0" data-w="0"><div class="wb"><i></i><i></i><i></i><span data-en="Browser">Trình duyệt</span></div><div class="wc browser"><span class="url">zmac-website.vercel.app</span><b></b><b></b><b></b></div></div>
+              <div class="win sw-win w1" data-w="1"><div class="wb"><i></i><i></i><i></i><span data-en="Notes">Ghi chú</span></div><div class="wc notes"><b></b><b></b><b></b><b></b></div></div>
+              <div class="win sw-win w2" data-w="2"><div class="wb"><i></i><i></i><i></i><span>Terminal</span></div><div class="wc term"><code>$ ./build.sh</code><code>→ build/zMac.app (2.1M)</code><code>$ ▍</code></div></div>
+              <div class="win sw-win w3" data-w="3"><div class="wb"><i></i><i></i><i></i><span data-en="Design">Thiết kế</span></div><div class="wc design"><span class="ztiles big"><i></i><i></i><i></i><i></i></span></div></div>
+              <div class="hud glass" id="sw-hud" hidden>
+                <div class="hud-items">
+                  <button type="button" class="hud-it" data-w="0"><span class="th th0"></span><span class="tile c-b"><svg class="i"><use href="#i-globe"/></svg></span></button>
+                  <button type="button" class="hud-it" data-w="1"><span class="th th1"></span><span class="tile c-o"><svg class="i"><use href="#i-note"/></svg></span></button>
+                  <button type="button" class="hud-it" data-w="2"><span class="th th2"></span><span class="tile c-g"><svg class="i"><use href="#i-terminal"/></svg></span></button>
+                  <button type="button" class="hud-it" data-w="3"><span class="th th3"></span><span class="tile c-p"><svg class="i"><use href="#i-pen"/></svg></span></button>
+                </div>
+                <p class="hud-title" id="sw-title"></p>
+              </div>
+            </div>
+
+            <!-- Chia cửa sổ -->
+            <div class="demo" id="demo-snap" data-demo="snap">
+              <div class="zone" id="snap-zone"></div>
+              <div class="win snap-win" id="snap-win"><div class="wb"><i></i><i></i><i></i><span data-en="Browser">Trình duyệt</span></div><div class="wc browser"><span class="url">zmac-website.vercel.app</span><b></b><b></b><b></b></div></div>
+            </div>
+
+            <!-- Clipboard -->
+            <div class="demo" id="demo-clipboard" data-demo="clipboard">
+              <div class="win note-win"><div class="wb"><i></i><i></i><i></i><span data-en="Notes">Ghi chú</span></div><div class="wc note-out" id="clip-out"><p class="ph" data-en="Pasted items show up here.">Những gì bạn dán sẽ hiện ở đây.</p></div></div>
+              <div class="clip glass" id="clip-panel">
+                <label class="clip-search"><svg class="i"><use href="#i-search"/></svg><input id="clip-q" type="text" autocomplete="off" spellcheck="false" placeholder="Tìm trong lịch sử…" data-en-placeholder="Search history…" aria-label="Tìm trong lịch sử clipboard" data-en-label="Search clipboard history" aria-controls="clip-list"></label>
+                <ul class="clip-list" id="clip-list" role="listbox" aria-label="Lịch sử clipboard" data-en-label="Clipboard history"></ul>
+                <p class="clip-foot"><svg class="i"><use href="#i-lock"/></svg><span data-en="Skipped 1 password from 1Password">Đã bỏ qua 1 mật khẩu từ 1Password</span></p>
+              </div>
+            </div>
+
+            <!-- Notch -->
+            <div class="demo" id="demo-notch" data-demo="notch">
+              <p class="n-hint glass" data-en="Hover the notch">Rê chuột vào notch</p>
+            </div>
+
+            <!-- Màn hình -->
+            <div class="demo center" id="demo-display" data-demo="display">
+              <div class="panel glass disp">
+                <div class="p-row"><span class="tile c-o"><svg class="i"><use href="#i-laptop"/></svg></span><span class="p-t"><b data-en="Built-in display">Màn hình tích hợp</b><small data-en="Hardware brightness">Độ sáng phần cứng</small></span><output id="br-int-o">85%</output></div>
+                <input class="rng" id="br-int" type="range" min="25" max="100" value="85" aria-label="Độ sáng màn hình tích hợp" data-en-label="Built-in display brightness">
+                <div class="p-sep"></div>
+                <div class="p-row"><span class="tile c-p"><svg class="i"><use href="#i-tv"/></svg></span><span class="p-t"><b>LG TV · HDMI</b><small data-en="No DDC, dimmed in software">Không có DDC, làm tối bằng phần mềm</small></span><output id="br-ext-o">70%</output></div>
+                <div class="tv" id="tv" data-res="1080"><div class="tv-in"><span class="tv-aa">Aa</span><span class="tv-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div><div class="tv-dim" id="tv-dim"></div></div>
+                <input class="rng" id="br-ext" type="range" min="10" max="100" value="70" aria-label="Độ sáng LG TV" data-en-label="LG TV brightness">
+                <div class="res" role="group" aria-label="Độ phân giải LG TV" data-en-label="LG TV resolution">
+                  <button type="button" data-res="1080" aria-pressed="true">1920 × 1080</button>
+                  <button type="button" data-res="1440" aria-pressed="false">2560 × 1440 <small>HiDPI</small></button>
+                  <button type="button" data-res="2160" aria-pressed="false">3840 × 2160</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pin -->
+            <div class="demo center" id="demo-battery" data-demo="battery">
+              <div class="panel glass bat">
+                <div class="bat-top"><div><b id="bat-pct">62%</b><span id="bat-state"></span></div><span class="bat-temp">31°C</span></div>
+                <div class="bat-gfx"><div class="bat-fill" id="bat-fill"></div><div class="bat-lim" id="bat-mark"></div><span class="bat-cap"></span></div>
+                <div class="p-row tight"><span data-en="Charge limit">Giới hạn sạc</span><output id="bat-lim-o">80%</output></div>
+                <input class="rng" id="bat-lim" type="range" min="50" max="100" step="5" value="80" aria-label="Giới hạn sạc" data-en-label="Charge limit">
+                <div class="chips"><span class="chip on"><svg class="i"><use href="#i-check"/></svg>Sailing</span><span class="chip on"><svg class="i"><use href="#i-check"/></svg><span data-en="Pause when hot">Dừng khi nóng</span></span></div>
+                <div class="p-btns"><button type="button" id="bat-plug"></button><button type="button" id="bat-top" data-en="Charge to 100% once">Sạc đầy một lần</button></div>
+              </div>
+            </div>
+
+            <!-- Âm thanh -->
+            <div class="demo center" id="demo-sound" data-demo="sound">
+              <div class="panel glass mix" id="mix">
+                <div class="p-row"><b data-en="Sound">Âm thanh</b><label class="outsel"><span data-en="Output">Đầu ra</span>
+                  <select id="mix-out"><option data-en="LG TV (HDMI)">LG TV (HDMI)</option><option data-en="MacBook speakers">Loa MacBook</option><option data-en="Headphones">Tai nghe</option></select></label></div>
+                <div class="mx" data-app="music"><span class="tile c-g"><svg class="i"><use href="#i-music"/></svg></span><div class="mx-m"><div class="mx-top"><b data-en="Music">Nhạc</b><select aria-label="Loa cho Nhạc" data-en-label="Output for Music"><option data-en="System output">Theo hệ thống</option><option data-en="MacBook speakers">Loa MacBook</option><option data-en="Headphones">Tai nghe</option></select></div><div class="mx-c"><button type="button" class="mute" aria-pressed="false" aria-label="Tắt tiếng Nhạc" data-en-label="Mute Music"><svg class="i"><use href="#i-sound"/></svg></button><input class="rng" type="range" min="0" max="100" value="70" aria-label="Âm lượng Nhạc" data-en-label="Music volume"><output>70%</output></div><span class="meter"><i></i></span></div></div>
+                <div class="mx" data-app="browser"><span class="tile c-b"><svg class="i"><use href="#i-globe"/></svg></span><div class="mx-m"><div class="mx-top"><b data-en="Browser">Trình duyệt</b><select aria-label="Loa cho Trình duyệt" data-en-label="Output for Browser"><option data-en="System output">Theo hệ thống</option><option data-en="MacBook speakers">Loa MacBook</option><option data-en="Headphones">Tai nghe</option></select></div><div class="mx-c"><button type="button" class="mute" aria-pressed="false" aria-label="Tắt tiếng Trình duyệt" data-en-label="Mute Browser"><svg class="i"><use href="#i-sound"/></svg></button><input class="rng" type="range" min="0" max="100" value="100" aria-label="Âm lượng Trình duyệt" data-en-label="Browser volume"><output>100%</output></div><span class="meter"><i></i></span></div></div>
+                <div class="mx" data-app="call"><span class="tile c-p"><svg class="i"><use href="#i-video"/></svg></span><div class="mx-m"><div class="mx-top"><b data-en="Video call">Gọi video</b><select aria-label="Loa cho Gọi video" data-en-label="Output for Video call"><option data-en="System output">Theo hệ thống</option><option data-en="MacBook speakers">Loa MacBook</option><option data-en="Headphones" selected>Tai nghe</option></select></div><div class="mx-c"><button type="button" class="mute" aria-pressed="false" aria-label="Tắt tiếng Gọi video" data-en-label="Mute Video call"><svg class="i"><use href="#i-sound"/></svg></button><input class="rng" type="range" min="0" max="100" value="85" aria-label="Âm lượng Gọi video" data-en-label="Video call volume"><output>85%</output></div><span class="meter"><i></i></span></div></div>
+                <div class="mx" data-app="game"><span class="tile c-o"><svg class="i"><use href="#i-game"/></svg></span><div class="mx-m"><div class="mx-top"><b data-en="Game">Trò chơi</b><select aria-label="Loa cho Trò chơi" data-en-label="Output for Game"><option data-en="System output">Theo hệ thống</option><option data-en="MacBook speakers">Loa MacBook</option><option data-en="Headphones">Tai nghe</option></select></div><div class="mx-c"><button type="button" class="mute" aria-pressed="false" aria-label="Tắt tiếng Trò chơi" data-en-label="Mute Game"><svg class="i"><use href="#i-sound"/></svg></button><input class="rng" type="range" min="0" max="100" value="100" aria-label="Âm lượng Trò chơi" data-en-label="Game volume"><output>100%</output></div><span class="meter"><i></i></span></div></div>
+              </div>
+            </div>
+
+            <!-- Giữ máy thức -->
+            <div class="demo center" id="demo-keepawake" data-demo="keepawake">
+              <div class="panel glass ka" id="ka">
+                <div class="ka-cup"><span class="steam"><i></i><i></i><i></i></span><svg class="i"><use href="#i-cup"/></svg></div>
+                <b id="ka-state"></b>
+                <span id="ka-sub"></span>
+                <div class="ka-btns" role="group" aria-label="Thời gian giữ máy thức" data-en-label="Keep awake duration">
+                  <button type="button" data-min="15" data-en="15 min">15 phút</button>
+                  <button type="button" data-min="60" data-en="1 hour">1 giờ</button>
+                  <button type="button" data-min="120" data-en="2 hours">2 giờ</button>
+                  <button type="button" data-min="300" data-en="5 hours">5 giờ</button>
+                  <button type="button" data-min="0">∞</button>
+                  <button type="button" data-min="-1" data-en="Off">Tắt</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="dim" id="dim" aria-hidden="true"></div>
+            <p class="zzz" id="zzz" aria-hidden="true" data-en="Mac is asleep">Mac đã ngủ</p>
+          </div>
+        </div>
+      </div>
+      <div class="mac-base" aria-hidden="true"></div>
     </div>
-    <div class="grid">
-      <article class="card">
-        <span class="tile c-b"><svg class="i"><use href="#i-switch"/></svg></span>
-        <h3 data-en="Window switcher">Chuyển cửa sổ</h3>
+
+    <div class="dock-wrap">
+      <p class="dock-l" data-en="Pick a module to try it">Chọn một module để thử</p>
+      <div class="dock" role="tablist" aria-label="Module">
+        <button type="button" role="tab" id="tab-overview" data-demo="overview" aria-selected="true" aria-controls="screen"><span class="tile c-n"><span class="ztiles"><i></i><i></i><i></i><i></i></span></span><span data-en="Overview">Tổng quan</span></button>
+        <button type="button" role="tab" id="tab-switcher" data-demo="switcher" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-b"><svg class="i"><use href="#i-switch"/></svg></span><span data-en="Switcher">Chuyển cửa sổ</span></button>
+        <button type="button" role="tab" id="tab-snap" data-demo="snap" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-o"><svg class="i"><use href="#i-snap"/></svg></span><span data-en="Snapping">Chia cửa sổ</span></button>
+        <button type="button" role="tab" id="tab-clipboard" data-demo="clipboard" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-p"><svg class="i"><use href="#i-clip"/></svg></span><span>Clipboard</span></button>
+        <button type="button" role="tab" id="tab-notch" data-demo="notch" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-g"><svg class="i"><use href="#i-notch"/></svg></span><span>Notch</span></button>
+        <button type="button" role="tab" id="tab-display" data-demo="display" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-o"><svg class="i"><use href="#i-display"/></svg></span><span data-en="Displays">Màn hình</span></button>
+        <button type="button" role="tab" id="tab-battery" data-demo="battery" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span><span data-en="Battery">Pin</span></button>
+        <button type="button" role="tab" id="tab-sound" data-demo="sound" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span><span data-en="Sound">Âm thanh</span></button>
+        <button type="button" role="tab" id="tab-keepawake" data-demo="keepawake" aria-selected="false" aria-controls="screen" tabindex="-1"><span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span><span data-en="Keep awake">Giữ thức</span></button>
+      </div>
+    </div>
+
+    <div class="caps">
+      <div class="cap" data-for="overview">
+        <h2 data-en="Everything behind one icon">Tất cả sau một icon</h2>
+        <p class="rep" data-en="8 modules · 1 process · about 20 MB">8 module · 1 tiến trình · khoảng 20 MB</p>
+        <p data-en="Click the zMac icon in the menu bar to adjust brightness, battery, volume and keep awake. Turn off any module you don't need: it isn't even created.">Bấm icon zMac trên menu bar để chỉnh nhanh độ sáng, pin, âm lượng, giữ máy thức. Module nào không cần thì tắt, nó sẽ không được tạo ra.</p>
+        <p class="try" data-en="Try it: click a row in the popover, or pick a module below the screen.">Thử: bấm một dòng trong popover, hoặc chọn module dưới màn hình.</p>
+      </div>
+      <div class="cap" data-for="switcher" hidden>
+        <h2 data-en="Window switcher">Chuyển cửa sổ</h2>
         <p class="rep" data-en="Replaces AltTab">Thay cho AltTab</p>
         <p data-en="Hold ⌥ and press ⇥ to go through every window, minimized ones and hidden apps included. ⌥` shows only the current app's windows. It can take over ⌘⇥ too.">Giữ ⌥ rồi bấm ⇥ để lướt qua từng cửa sổ, kể cả cửa sổ thu nhỏ và app đang ẩn. ⌥` chỉ hiện cửa sổ của app đang dùng. Muốn thì thay luôn ⌘⇥.</p>
-        <div class="keys"><kbd>⌥</kbd><kbd>⇥</kbd></div>
-      </article>
-      <article class="card">
-        <span class="tile c-o"><svg class="i"><use href="#i-snap"/></svg></span>
-        <h3 data-en="Window snapping">Chia cửa sổ</h3>
+        <div class="ctrl" id="sw-ctrl">
+          <button type="button" class="kbtn" id="sw-next"><kbd>⌥</kbd><kbd>⇥</kbd><span data-en="Next">Tiếp</span></button>
+          <button type="button" class="kbtn" id="sw-prev"><kbd>⌥</kbd><kbd>⇧</kbd><kbd>⇥</kbd><span data-en="Back">Lùi</span></button>
+          <button type="button" class="kbtn" id="sw-go"><span data-en="Release ⌥">Thả ⌥</span></button>
+        </div>
+        <p class="try" data-en="Or use ← → and ↩ while a button has focus.">Hoặc dùng ← → và ↩ khi đang chọn một nút.</p>
+      </div>
+      <div class="cap" data-for="snap" hidden>
+        <h2 data-en="Window snapping">Chia cửa sổ</h2>
         <p class="rep" data-en="Replaces Rectangle">Thay cho Rectangle</p>
-        <p data-en="⌃⌥ plus an arrow for halves, U I J K for corners, D F G for thirds, ↩ to maximize. Dragging a window to a screen edge works too.">⌃⌥ cộng mũi tên cho nửa màn hình, U I J K cho bốn góc, D F G cho từng phần ba, ↩ để phóng to. Kéo cửa sổ ra mép màn hình cũng được.</p>
-        <div class="keys"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>←</kbd></div>
-      </article>
-      <article class="card">
-        <span class="tile c-p"><svg class="i"><use href="#i-clip"/></svg></span>
-        <h3 data-en="Clipboard history">Lịch sử clipboard</h3>
+        <p data-en="Hold ⌃⌥ and press a key. Dragging a window to a screen edge works too.">Giữ ⌃⌥ rồi bấm một phím. Kéo cửa sổ ra mép màn hình cũng xếp được.</p>
+        <div class="keygroups" id="snap-keys">
+          <div class="kg"><span class="kg-l" data-en="Halves">Nửa</span><div class="kg-k">
+            <button class="key" type="button" data-snap="left" aria-label="Nửa trái" data-en-label="Left half">←</button>
+            <button class="key" type="button" data-snap="right" aria-label="Nửa phải" data-en-label="Right half">→</button>
+            <button class="key" type="button" data-snap="top" aria-label="Nửa trên" data-en-label="Top half">↑</button>
+            <button class="key" type="button" data-snap="bottom" aria-label="Nửa dưới" data-en-label="Bottom half">↓</button>
+          </div></div>
+          <div class="kg"><span class="kg-l" data-en="Corners">Góc</span><div class="kg-k">
+            <button class="key" type="button" data-snap="tl" aria-label="Góc trên trái" data-en-label="Top left">U</button>
+            <button class="key" type="button" data-snap="tr" aria-label="Góc trên phải" data-en-label="Top right">I</button>
+            <button class="key" type="button" data-snap="bl" aria-label="Góc dưới trái" data-en-label="Bottom left">J</button>
+            <button class="key" type="button" data-snap="br" aria-label="Góc dưới phải" data-en-label="Bottom right">K</button>
+          </div></div>
+          <div class="kg"><span class="kg-l" data-en="Thirds">Phần ba</span><div class="kg-k">
+            <button class="key" type="button" data-snap="t1" aria-label="Phần ba đầu" data-en-label="First third">D</button>
+            <button class="key" type="button" data-snap="t2" aria-label="Phần ba giữa" data-en-label="Center third">F</button>
+            <button class="key" type="button" data-snap="t3" aria-label="Phần ba cuối" data-en-label="Last third">G</button>
+            <button class="key" type="button" data-snap="tt1" aria-label="Hai phần ba đầu" data-en-label="First two thirds">E</button>
+            <button class="key" type="button" data-snap="tt2" aria-label="Hai phần ba cuối" data-en-label="Last two thirds">T</button>
+          </div></div>
+          <div class="kg"><span class="kg-l" data-en="Whole">Cả màn</span><div class="kg-k">
+            <button class="key key-w" type="button" data-snap="max" aria-label="Phóng to" data-en-label="Maximize">↩</button>
+            <button class="key" type="button" data-snap="center" aria-label="Căn giữa" data-en-label="Center">C</button>
+          </div></div>
+        </div>
+      </div>
+      <div class="cap" data-for="clipboard" hidden>
+        <h2 data-en="Clipboard history">Lịch sử clipboard</h2>
         <p class="rep" data-en="Replaces Maccy">Thay cho Maccy</p>
         <p data-en="⌘⇧C brings back what you copied. Search, pin and paste without leaving the keyboard. Passwords copied from 1Password, Bitwarden or Keychain are never saved.">⌘⇧C mở lại những gì bạn đã chép. Tìm, ghim, dán lại mà không rời bàn phím. Mật khẩu chép từ 1Password, Bitwarden hay Keychain không bị lưu.</p>
-        <div class="keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></div>
-      </article>
-      <article class="card">
-        <span class="tile c-g"><svg class="i"><use href="#i-notch"/></svg></span>
-        <h3 data-en="Notch">Notch</h3>
-        <p class="rep" data-en="Replaces NotchNook">Thay cho NotchNook</p>
-        <p data-en="Hover the notch for what's playing and media controls, a shelf to park files, and battery status when you plug in. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát và điều khiển nhạc, có kệ để tạm file, báo pin khi cắm sạc. Mac không có notch thì bật notch giả.</p>
-      </article>
-      <article class="card">
-        <span class="tile c-o"><svg class="i"><use href="#i-display"/></svg></span>
-        <h3 data-en="Displays">Màn hình</h3>
-        <p class="rep" data-en="Replaces BetterDisplay">Thay cho BetterDisplay</p>
-        <p data-en="Set external display brightness over DDC. Screens and TVs without DDC get dimmed in software. Switch resolutions and HiDPI modes.">Chỉnh độ sáng màn hình ngoài qua DDC. Màn hình hay TV không hỗ trợ DDC thì làm tối bằng phần mềm. Đổi độ phân giải, chọn chế độ HiDPI.</p>
-      </article>
-      <article class="card">
-        <span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span>
-        <h3 data-en="Battery">Pin</h3>
-        <p class="rep" data-en="Replaces AlDente">Thay cho AlDente</p>
-        <p data-en="Stop charging at a level you pick, like 80%, so the battery lasts longer. Sailing, a pause when the battery runs hot, discharge to the limit while plugged in, and a one-off full charge before a trip.">Dừng sạc ở mức bạn chọn, ví dụ 80%, để pin bền hơn. Có sailing, tạm dừng khi pin nóng, xả về ngưỡng khi đang cắm điện, và sạc đầy một lần trước chuyến đi.</p>
-      </article>
-      <article class="card">
-        <span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span>
-        <h3 data-en="Sound">Âm thanh</h3>
-        <p class="rep" data-en="Replaces FineTune">Thay cho FineTune</p>
-        <p data-en="A volume level and an output device for each app, plus quick switching of inputs and outputs. Needs macOS 14.2 or later.">Mỗi app một mức âm lượng, một loa riêng. Đổi nhanh thiết bị vào ra. Cần macOS 14.2 trở lên.</p>
-      </article>
-      <article class="card">
-        <span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span>
-        <h3 data-en="Keep awake">Giữ máy thức</h3>
-        <p class="rep" data-en="Replaces Amphetamine">Thay cho Amphetamine</p>
-        <p data-en="Keep your Mac from sleeping for 15 minutes, 1, 2 or 5 hours, or until you turn it off.">Không cho máy ngủ trong 15 phút, 1, 2 hay 5 giờ, hoặc đến khi bạn tắt.</p>
-      </article>
-    </div>
-  </div>
-</section>
-
-<section id="snap" class="sec">
-  <div class="wrap snap">
-    <div class="snap-copy">
-      <p class="eyebrow" data-en="Try it">Thử ngay</p>
-      <h2 data-en="Arrange windows<br>without the mouse.">Xếp cửa sổ<br>không cần chuột.</h2>
-      <p class="sub" data-en="Press a key below to see where the window lands. On your Mac, hold ⌃⌥ and press the same key.">Bấm một phím bên dưới để xem cửa sổ nhảy về đâu. Trên Mac, giữ ⌃⌥ rồi bấm đúng phím đó.</p>
-      <p class="snap-now" aria-live="polite"><kbd>⌃</kbd><kbd>⌥</kbd><kbd id="snap-key">↩</kbd><span id="snap-name">Phóng to</span></p>
-    </div>
-    <div class="snap-demo" id="snap-demo">
-      <div class="screen" aria-hidden="true">
-        <div class="win" id="snap-win"><div class="win-bar"><i></i><i></i><i></i></div><div class="win-body"><b></b><b></b><b></b></div></div>
+        <div class="ctrl"><button type="button" class="kbtn" id="clip-toggle"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd><span data-en="Open / close">Mở / đóng</span></button></div>
+        <p class="try" data-en="Try it: type in the search box, use ↑ ↓ and ↩, or click an item to paste it into Notes.">Thử: gõ vào ô tìm kiếm, dùng ↑ ↓ và ↩, hoặc bấm một mục để dán vào Ghi chú.</p>
       </div>
-      <div class="keygroups">
-        <div class="kg"><span class="kg-l" data-en="Halves">Nửa</span><div class="kg-k">
-          <button class="key" type="button" data-snap="left" aria-label="Nửa trái" data-en-label="Left half">←</button>
-          <button class="key" type="button" data-snap="right" aria-label="Nửa phải" data-en-label="Right half">→</button>
-          <button class="key" type="button" data-snap="top" aria-label="Nửa trên" data-en-label="Top half">↑</button>
-          <button class="key" type="button" data-snap="bottom" aria-label="Nửa dưới" data-en-label="Bottom half">↓</button>
-        </div></div>
-        <div class="kg"><span class="kg-l" data-en="Corners">Góc</span><div class="kg-k">
-          <button class="key" type="button" data-snap="tl" aria-label="Góc trên trái" data-en-label="Top left">U</button>
-          <button class="key" type="button" data-snap="tr" aria-label="Góc trên phải" data-en-label="Top right">I</button>
-          <button class="key" type="button" data-snap="bl" aria-label="Góc dưới trái" data-en-label="Bottom left">J</button>
-          <button class="key" type="button" data-snap="br" aria-label="Góc dưới phải" data-en-label="Bottom right">K</button>
-        </div></div>
-        <div class="kg"><span class="kg-l" data-en="Thirds">Phần ba</span><div class="kg-k">
-          <button class="key" type="button" data-snap="t1" aria-label="Phần ba đầu" data-en-label="First third">D</button>
-          <button class="key" type="button" data-snap="t2" aria-label="Phần ba giữa" data-en-label="Center third">F</button>
-          <button class="key" type="button" data-snap="t3" aria-label="Phần ba cuối" data-en-label="Last third">G</button>
-          <button class="key" type="button" data-snap="tt1" aria-label="Hai phần ba đầu" data-en-label="First two thirds">E</button>
-          <button class="key" type="button" data-snap="tt2" aria-label="Hai phần ba cuối" data-en-label="Last two thirds">T</button>
-        </div></div>
-        <div class="kg"><span class="kg-l" data-en="Whole">Cả màn</span><div class="kg-k">
-          <button class="key key-w" type="button" data-snap="max" aria-label="Phóng to" data-en-label="Maximize">↩</button>
-          <button class="key" type="button" data-snap="center" aria-label="Căn giữa" data-en-label="Center">C</button>
-        </div></div>
+      <div class="cap" data-for="notch" hidden>
+        <h2>Notch</h2>
+        <p class="rep" data-en="Replaces NotchNook">Thay cho NotchNook</p>
+        <p data-en="Hover the notch for what's playing and media controls, plus a shelf to park files. Plug in and the notch shows your battery. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát và điều khiển nhạc, có kệ để tạm file. Cắm sạc là notch báo pin. Mac không có notch thì bật notch giả.</p>
+        <div class="ctrl"><button type="button" class="kbtn" id="n-toggle"><span data-en="Open the notch">Mở notch</span></button><button type="button" class="kbtn" id="n-plug"><svg class="i"><use href="#i-bolt"/></svg><span data-en="Plug in">Cắm sạc</span></button></div>
+        <p class="try" data-en="Since macOS 15.4 the notch shows the player's icon instead of album art.">Từ macOS 15.4, notch hiện icon trình phát thay cho ảnh bìa.</p>
+      </div>
+      <div class="cap" data-for="display" hidden>
+        <h2 data-en="Displays">Màn hình</h2>
+        <p class="rep" data-en="Replaces BetterDisplay">Thay cho BetterDisplay</p>
+        <p data-en="Brightness for the built-in display and external screens. Screens and TVs without DDC get dimmed in software. Switch resolutions and HiDPI modes.">Chỉnh độ sáng màn hình tích hợp và màn hình ngoài. Màn hình hay TV không có DDC thì làm tối bằng phần mềm. Đổi độ phân giải, chọn chế độ HiDPI.</p>
+        <p class="try" data-en="Try it: drag both sliders and pick a resolution for the TV.">Thử: kéo hai thanh trượt và chọn độ phân giải cho TV.</p>
+      </div>
+      <div class="cap" data-for="battery" hidden>
+        <h2 data-en="Battery">Pin</h2>
+        <p class="rep" data-en="Replaces AlDente">Thay cho AlDente</p>
+        <p data-en="Stop charging at the level you pick so the battery lasts longer. It can discharge to the limit while plugged in, and charge to 100% once before a trip.">Dừng sạc ở mức bạn chọn để pin bền hơn. Đang cắm điện vẫn xả được về ngưỡng, và sạc đầy một lần trước chuyến đi.</p>
+        <p class="try" data-en="Try it: drag the limit, unplug or plug in, or charge to 100% once. Needs a small daemon, installed once with your admin password.">Thử: kéo giới hạn, rút hay cắm sạc, hoặc sạc đầy một lần. Cần cài một daemon nhỏ, nhập mật khẩu admin một lần.</p>
+      </div>
+      <div class="cap" data-for="sound" hidden>
+        <h2 data-en="Sound">Âm thanh</h2>
+        <p class="rep" data-en="Replaces FineTune">Thay cho FineTune</p>
+        <p data-en="A volume level and an output device for each app, plus quick switching of the Mac's output. Needs macOS 14.2 or later.">Mỗi app một mức âm lượng và một loa riêng, đổi nhanh đầu ra cho cả máy. Cần macOS 14.2 trở lên.</p>
+        <p class="try" data-en="Try it: drag a volume, mute an app, or send one app to headphones.">Thử: kéo âm lượng, tắt tiếng một app, hoặc cho riêng một app ra tai nghe.</p>
+      </div>
+      <div class="cap" data-for="keepawake" hidden>
+        <h2 data-en="Keep awake">Giữ máy thức</h2>
+        <p class="rep" data-en="Replaces Amphetamine">Thay cho Amphetamine</p>
+        <p data-en="Keep your Mac from sleeping for 15 minutes, 1, 2 or 5 hours, or until you turn it off.">Không cho Mac ngủ trong 15 phút, 1, 2, 5 giờ hoặc đến khi bạn tắt.</p>
+        <p class="try" data-en="Try it: leave it alone for a few seconds and the Mac dozes off, then pick a duration.">Thử: để yên vài giây là Mac ngủ, rồi chọn một khoảng thời gian.</p>
       </div>
     </div>
   </div>
@@ -240,12 +408,12 @@
     </figure>
 
     <div class="why">
-      <div><h3 data-en="One process instead of eight">Một tiến trình thay cho tám</h3><p data-en="Every module shares one loaded copy of Swift, AppKit and SwiftUI.">Mọi module dùng chung một bản Swift, AppKit, SwiftUI đã nạp sẵn.</p></div>
-      <div><h3 data-en="Off means gone">Tắt là không tồn tại</h3><p data-en="A module you turn off isn't created and registers nothing.">Module bạn tắt không được tạo ra, không đăng ký gì với hệ thống.</p></div>
-      <div><h3 data-en="Event driven">Chạy theo sự kiện</h3><p data-en="No repeating timers. Battery, sound and displays tell zMac when something changes. Only the clipboard has to be checked, and the check slows down when you're idle.">Không timer lặp. Pin, âm thanh, màn hình tự báo khi có thay đổi. Riêng clipboard phải kiểm tra định kỳ, và nhịp kiểm tra tự giãn khi máy rảnh.</p></div>
-      <div><h3 data-en="Out of your typing">Không chen vào bàn phím</h3><p data-en="Shortcuts are registered with the system, with no event tap, so your keystrokes never pass through zMac.">Phím tắt đăng ký thẳng với hệ thống, không chặn bàn phím, nên những gì bạn gõ không đi qua zMac.</p></div>
-      <div><h3 data-en="Closed means freed">Đóng là giải phóng</h3><p data-en="Settings, the menu bar popover and the clipboard panel tear down their views when they close.">Cửa sổ Cài đặt, popover menu bar, bảng clipboard huỷ giao diện ngay khi đóng.</p></div>
-      <div><h3 data-en="Heavy work only on demand">Chỉ làm nặng khi cần</h3><p data-en="Per-app volume only taps an app's audio when it isn't at 100%. ⌥⇥ window previews are off by default.">Âm lượng từng app chỉ can thiệp luồng âm thanh khi app đó khác 100%. Ảnh xem trước ⌥⇥ mặc định tắt.</p></div>
+      <div><span class="tile c-b"><svg class="i"><use href="#i-layers"/></svg></span><h3 data-en="One process instead of eight">Một tiến trình thay cho tám</h3><p data-en="Every module shares one loaded copy of Swift, AppKit and SwiftUI.">Mọi module dùng chung một bản Swift, AppKit, SwiftUI đã nạp sẵn.</p></div>
+      <div><span class="tile c-o"><svg class="i"><use href="#i-power"/></svg></span><h3 data-en="Off means gone">Tắt là không tồn tại</h3><p data-en="A module you turn off isn't created and registers nothing.">Module bạn tắt không được tạo ra, không đăng ký gì với hệ thống.</p></div>
+      <div><span class="tile c-g"><svg class="i"><use href="#i-bolt"/></svg></span><h3 data-en="Event driven">Chạy theo sự kiện</h3><p data-en="No repeating timers. Battery, sound and displays tell zMac when something changes. Only the clipboard has to be checked, and the check slows down when you're idle.">Không timer lặp. Pin, âm thanh, màn hình tự báo khi có thay đổi. Riêng clipboard phải kiểm tra định kỳ, và nhịp kiểm tra tự giãn khi máy rảnh.</p></div>
+      <div><span class="tile c-p"><svg class="i"><use href="#i-keyboard"/></svg></span><h3 data-en="Out of your typing">Không chen vào bàn phím</h3><p data-en="Shortcuts are registered with the system, with no event tap, so your keystrokes never pass through zMac.">Phím tắt đăng ký thẳng với hệ thống, không chặn bàn phím, nên những gì bạn gõ không đi qua zMac.</p></div>
+      <div><span class="tile c-b"><svg class="i"><use href="#i-close"/></svg></span><h3 data-en="Closed means freed">Đóng là giải phóng</h3><p data-en="Settings, the menu bar popover and the clipboard panel tear down their views when they close.">Cửa sổ Cài đặt, popover menu bar, bảng clipboard huỷ giao diện ngay khi đóng.</p></div>
+      <div><span class="tile c-o"><svg class="i"><use href="#i-gauge"/></svg></span><h3 data-en="Heavy work only on demand">Chỉ làm nặng khi cần</h3><p data-en="Per-app volume only taps an app's audio when it isn't at 100%. ⌥⇥ window previews are off by default.">Âm lượng từng app chỉ can thiệp luồng âm thanh khi app đó khác 100%. Ảnh xem trước ⌥⇥ mặc định tắt.</p></div>
     </div>
   </div>
 </section>
@@ -258,21 +426,25 @@
     </div>
     <ol class="steps">
       <li class="card step">
+        <div class="sv" aria-hidden="true"><img src="assets/icon.png" alt="" width="40" height="40"><svg class="i sv-arrow"><use href="#i-arrow"/></svg><span class="sv-folder"><svg class="i"><use href="#i-folder"/></svg><small>Applications</small></span></div>
         <span class="num">1</span>
         <h3 data-en="Drag into Applications">Kéo vào Applications</h3>
         <p data-en="Open the zMac.dmg you downloaded and drag zMac into the Applications folder.">Mở file zMac.dmg vừa tải, kéo zMac vào thư mục Applications.</p>
       </li>
       <li class="card step">
+        <div class="sv" aria-hidden="true"><span class="sv-line"><span data-en="“zMac” was blocked">“zMac” đã bị chặn</span><span class="sv-btn" data-en="Open Anyway">Vẫn mở</span></span></div>
         <span class="num">2</span>
         <h3 data-en="Open it the first time">Mở lần đầu</h3>
         <p data-en="zMac isn't notarized by Apple yet, so macOS blocks the first launch. Click Done, open System Settings → Privacy &amp; Security, scroll down and click Open Anyway. You only do this once.">zMac chưa được Apple công chứng (notarize) nên lần đầu macOS sẽ chặn. Bấm Xong, vào Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật, kéo xuống và bấm Vẫn mở. Chỉ cần làm một lần.</p>
       </li>
       <li class="card step">
+        <div class="sv" aria-hidden="true"><span class="sv-line"><img src="assets/icon.png" alt="" width="22" height="22"><span>zMac</span><span class="sv-tg"></span></span></div>
         <span class="num">3</span>
         <h3 data-en="Allow Accessibility">Cấp quyền Trợ năng</h3>
         <p data-en="The first time you use ⌥⇥ or snapping, zMac asks for Accessibility access. Window switching, snapping, clipboard paste and the media keys need it.">Lần đầu bạn dùng ⌥⇥ hoặc chia cửa sổ, zMac sẽ xin quyền Trợ năng. Chuyển cửa sổ, chia cửa sổ, dán từ clipboard và nút điều khiển nhạc cần quyền này.</p>
       </li>
       <li class="card step">
+        <div class="sv" aria-hidden="true"><span class="sv-mb"><span class="sv-z"><span class="ztiles"><i></i><i></i><i></i><i></i></span></span><svg class="i"><use href="#i-wifi"/></svg><svg class="i"><use href="#i-battery"/></svg><b>08:30</b></span></div>
         <span class="num">4</span>
         <h3 data-en="Pick what you use">Chọn thứ bạn dùng</h3>
         <p data-en="Click the zMac icon in the menu bar, then Settings, to turn modules on or off and change shortcuts. Charge limiting installs a small daemon and asks for your admin password once.">Bấm icon zMac trên menu bar → Cài đặt để bật tắt từng module, đổi phím tắt. Giới hạn sạc cần cài thêm một daemon nhỏ, macOS hỏi mật khẩu admin một lần.</p>
@@ -329,7 +501,6 @@
   <div class="wrap faq">
     <div class="faq-side">
       <p class="eyebrow" data-en="FAQ">Hỏi đáp</p>
-      <h2 data-en="Good to know.">Nên biết trước.</h2>
       <div class="card limits">
         <h3 data-en="Not there yet">Chưa làm được</h3>
         <ul>
@@ -345,8 +516,7 @@
     <div class="qa-list">
       <details class="qa">
         <summary data-en="Does zMac cost anything?">zMac có mất phí không?</summary>
-        <p data-en="No. zMac is free and open source under the MIT license. The code is on GitHub: read it, build it yourself, report bugs or send fixes. To build from source you only need Apple's Command Line Tools:">Không. zMac miễn phí và mã nguồn mở theo giấy phép MIT. Mã nguồn ở GitHub: bạn có thể đọc, tự build, báo lỗi hoặc gửi bản sửa. Tự build chỉ cần Command Line Tools của Apple:</p>
-        <div class="cmd"><code id="cmd-build">git clone https://github.com/KienHungPG/zMac.git &amp;&amp; cd zMac &amp;&amp; ./build.sh install</code><button class="copy" type="button" data-copy="cmd-build" data-en="Copy">Chép</button></div>
+        <p data-en="No. zMac is free and open source under the MIT license.">Không. zMac miễn phí và mã nguồn mở theo giấy phép MIT.</p>
       </details>
       <details class="qa">
         <summary data-en="Why does macOS block zMac the first time?">Vì sao macOS chặn zMac lần đầu?</summary>
@@ -372,11 +542,34 @@
         <summary data-en="How do I update?">Cập nhật thế nào?</summary>
         <p data-en="zMac doesn't update itself yet. Come back here, download the new version and drag it over the old one in Applications. Because the app isn't Developer ID signed, macOS may ask for Accessibility again after an update: remove zMac from the list and add it back.">zMac chưa tự cập nhật. Quay lại trang này, tải bản mới, kéo đè lên bản cũ trong Applications. Vì app chưa ký Developer ID, sau khi cập nhật macOS có thể đòi cấp lại quyền Trợ năng: xoá zMac khỏi danh sách rồi thêm lại.</p>
       </details>
-      <details class="qa">
-        <summary data-en="How do I uninstall it completely?">Gỡ hẳn zMac thế nào?</summary>
-        <p data-en="If you set up charge limiting, click Uninstall under Settings → Battery first. Then quit zMac and delete it from Applications. To also remove its settings and clipboard history:">Nếu đã cài giới hạn sạc, vào Cài đặt → Pin bấm Gỡ trước. Sau đó thoát zMac và xoá khỏi Applications. Muốn xoá luôn cài đặt và lịch sử clipboard:</p>
-        <div class="cmd"><code id="cmd-rm">defaults delete com.zmac.app; rm -rf ~/Library/Application\ Support/zMac</code><button class="copy" type="button" data-copy="cmd-rm" data-en="Copy">Chép</button></div>
-      </details>
+    </div>
+  </div>
+</section>
+
+<section id="feedback" class="sec">
+  <div class="wrap fb">
+    <div>
+      <p class="eyebrow" data-en="Bugs and ideas">Báo lỗi và góp ý</p>
+      <h2 data-en="Hit a bug or missing something?<br>Open an issue.">Gặp lỗi hay thiếu gì?<br>Mở một issue.</h2>
+      <p class="sub" data-en="zMac is open source, so every report and idea is discussed in the open on GitHub. You'll need a free GitHub account.">zMac là mã nguồn mở, mọi báo lỗi và góp ý đều trao đổi công khai trên GitHub. Bạn cần một tài khoản GitHub, miễn phí.</p>
+      <a class="fb-all" href="https://github.com/KienHungPG/zMac/issues"><span data-en="See open issues">Xem các issue đang mở</span><svg class="i"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="fb-cards">
+      <a class="card fb-card" data-issue="bug" href="https://github.com/KienHungPG/zMac/issues/new?labels=bug">
+        <span class="tile c-o"><svg class="i"><use href="#i-bug"/></svg></span>
+        <span class="fb-t"><b data-en="Report a bug">Báo lỗi</b><span data-en="Describe what went wrong and how to make it happen again. The form is already filled in with your zMac version.">Mô tả lỗi và cách làm nó xảy ra lần nữa. Mẫu đã điền sẵn phiên bản zMac.</span></span>
+        <svg class="i"><use href="#i-arrow"/></svg>
+      </a>
+      <a class="card fb-card" data-issue="idea" href="https://github.com/KienHungPG/zMac/issues/new?labels=enhancement">
+        <span class="tile c-p"><svg class="i"><use href="#i-bulb"/></svg></span>
+        <span class="fb-t"><b data-en="Suggest a feature">Góp ý tính năng</b><span data-en="Something zMac should do, or another app it should replace.">Muốn zMac làm thêm việc gì, hay thay thêm app nào.</span></span>
+        <svg class="i"><use href="#i-arrow"/></svg>
+      </a>
+      <div class="fb-diag">
+        <p class="small" data-en="When reporting a bug, this copies your Mac's details to the clipboard so you can paste them into the issue:">Khi báo lỗi, lệnh này chép thông tin máy vào clipboard để bạn dán vào issue:</p>
+        <div class="cmd"><code id="cmd-diag">/Applications/zMac.app/Contents/MacOS/zMac --diagnose | pbcopy</code><button class="copy" type="button" data-copy="cmd-diag" data-en="Copy">Chép</button></div>
+        <p class="small" data-en="It lists your Mac model, macOS version and each module's status, but also audio device names, display serial numbers and the apps you have open. Read it and delete anything you'd rather not post publicly.">Kết quả có đời Mac, phiên bản macOS và trạng thái từng module, nhưng cũng có tên thiết bị âm thanh, số serial màn hình và tên các app đang mở. Đọc qua và xoá phần bạn không muốn công khai trước khi dán.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -386,7 +579,7 @@
     <div class="final">
       <img src="assets/icon.png" alt="" width="88" height="88">
       <h2 data-en="Clear the menu bar.<br>Lighten the Mac.">Dọn menu bar.<br>Nhẹ cả máy.</h2>
-      <a class="btn btn-lg" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
+      <a class="btn btn-lg btn-light" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
       <p class="meta"><span data-en="Free · MIT">Miễn phí · MIT</span> · <span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
       <a class="ghost ghost-i final-src" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code on GitHub">Mã nguồn trên GitHub</span></a>
     </div>
@@ -399,7 +592,7 @@
   <div class="wrap foot-in">
     <p>© 2026 KienHungPG · <a href="https://github.com/KienHungPG/zMac/blob/main/LICENSE" data-en="MIT license">Giấy phép MIT</a></p>
     <p><a href="https://github.com/KienHungPG/zMac" data-en="Source code">Mã nguồn</a> · <a href="https://github.com/KienHungPG/zMac/issues" data-en="Report a bug">Báo lỗi</a></p>
-    <p data-en="Thanks to yabai, MonitorControl and Roost (MIT) for showing the way.">Cảm ơn yabai, MonitorControl và Roost (MIT) đã chỉ đường.</p>
+    <p data-en="Thanks to yabai and MonitorControl (MIT) for showing the way.">Cảm ơn yabai và MonitorControl (MIT) đã chỉ đường.</p>
     <p data-en="This page uses no cookies, no tracking and nothing from third parties.">Trang này không cookie, không theo dõi, không tải gì từ bên thứ ba.</p>
   </div>
 </footer>
