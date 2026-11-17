@@ -17,9 +17,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.1.0</string>
+	<string>0.2.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
@@ -28,6 +28,10 @@
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>zMac cần quyền này để chỉnh âm lượng riêng từng app. Âm thanh chỉ đi qua bộ nhớ, không ghi lại và không lưu. (zMac needs this to change per-app volume. Audio only passes through memory and is never recorded or saved.)</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>zMac hiện tuần này và cuộc họp sắp tới trong notch. Chỉ đọc, không ghi và không gửi lịch đi đâu. (zMac shows this week and your next meeting in the notch. It only reads, and never writes or sends your calendar anywhere.)</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>zMac hiện tuần này và cuộc họp sắp tới trong notch. Chỉ đọc, không ghi và không gửi lịch đi đâu. (zMac shows this week and your next meeting in the notch. It only reads, and never writes or sends your calendar anywhere.)</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 KienHungPG · MIT License</string>
 	<key>NSSupportsSuddenTermination</key>

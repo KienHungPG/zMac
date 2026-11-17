@@ -138,6 +138,24 @@ enum ZAudioHAL {
         }
     }
 
+    /// Có ít nhất một địa chỉ âm lượng ghi được (loa HDMI thường không có).
+    static func canSetVolume(_ id: AudioDeviceID, output: Bool) -> Bool {
+        guard id != 0 else { return false }
+        return volumeAddresses(output: output).joined().contains { a in
+            var a = a
+            var settable = DarwinBoolean(false)
+            return AudioObjectHasProperty(id, &a) && AudioObjectIsPropertySettable(id, &a, &settable) == noErr
+                && settable.boolValue
+        }
+    }
+
+    static func hasMute(_ id: AudioDeviceID, output: Bool) -> Bool {
+        var a = addr(kAudioDevicePropertyMute, scope(output: output))
+        var settable = DarwinBoolean(false)
+        return id != 0 && AudioObjectHasProperty(id, &a) && AudioObjectIsPropertySettable(id, &a, &settable) == noErr
+            && settable.boolValue
+    }
+
     static func isMuted(_ id: AudioDeviceID, output: Bool) -> Bool {
         (u32(id, addr(kAudioDevicePropertyMute, scope(output: output))) ?? 0) != 0
     }

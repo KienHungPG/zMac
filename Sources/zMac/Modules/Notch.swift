@@ -13,7 +13,8 @@ import ZMacShared
 // - Rê chuột vào: phóng cửa sổ ra kích thước mở ngay (trong suốt) rồi animate hình đen trong SwiftUI.
 //   Thu lại: animate hình nhỏ lại rồi mới thu cửa sổ. Cây view lúc mở bị gỡ khỏi view tree khi thu gọn.
 // - Nhạc: distributed notification của Music / Spotify. Điều khiển bằng phím media (mọi trình phát).
-// - Báo pin khi cắm sạc: IOPS run loop source (theo sự kiện).
+// - Báo pin khi cắm sạc, cảnh báo pin yếu: IOPS run loop source (theo sự kiện).
+// - Phím âm lượng / độ sáng: MediaKeyTap (chỉ NX_SYSDEFINED) chỉnh rồi hiện mức trên hai cánh, thay HUD macOS.
 
 @MainActor @Observable
 final class NotchModule: ZModule {
@@ -22,12 +23,12 @@ final class NotchModule: ZModule {
     static let replaces = "NotchNook"
     static let symbol = "rectangle.topthird.inset.filled"
     static var summary: String {
-        L("Rê chuột vào notch để xem nhạc đang phát, điều khiển nhạc, để tạm file. Báo pin khi cắm sạc.",
-          "Hover the notch for now playing and media controls, and a shelf for files. Shows battery when you plug in.")
+        L("Rê chuột vào notch để xem nhạc, lời bài hát, lịch, để tạm file. Âm lượng, độ sáng, pin hiện ở hai cánh notch.",
+          "Hover the notch for music, lyrics, your calendar and a file shelf. Volume, brightness and battery show beside it.")
     }
     static var defaultEnabled: Bool { MainActor.assumeIsolated { Hardware.notchScreen != nil } }
 
-    enum Tab { case nowPlaying, lyrics, shelf, pet }
+    enum Tab { case nowPlaying, shelf, pet }
 
     // MARK: Cài đặt
 
@@ -36,6 +37,17 @@ final class NotchModule: ZModule {
     }
     var chargingHUD = Pref.bool("notch.chargingHUD", true) {
         didSet { Pref.set("notch.chargingHUD", chargingHUD) }
+    }
+    /// Phím âm lượng / độ sáng hiện trên notch thay HUD macOS (cần quyền Trợ năng).
+    var mediaKeysHUD = Pref.bool("notch.mediaKeys", true) {
+        didSet { Pref.set("notch.mediaKeys", mediaKeysHUD); mediaKeysHUD ? startMediaKeys(prompt: true) : stopMediaKeys() }
+    }
+    var lowBatteryAlert = Pref.bool("notch.lowBattery", true) {
+        didSet { Pref.set("notch.lowBattery", lowBatteryAlert); if !lowBatteryAlert { dismissAlert() } }
+    }
+    /// Mốc báo đầu tiên (%); sau đó báo thêm ở 10% và 5%.
+    var lowBatteryLevel = Pref.int("notch.lowBatteryLevel", 20) {
+        didSet { Pref.set("notch.lowBatteryLevel", lowBatteryLevel) }
     }
     var liveActivity = Pref.bool("notch.liveActivity", true) {
         didSet { Pref.set("notch.liveActivity", liveActivity); if !open { updateLayout() } }
@@ -48,15 +60,16 @@ final class NotchModule: ZModule {
     var hoverDelay = Pref.double("notch.hoverDelay", 0.08) {
         didSet { Pref.set("notch.hoverDelay", hoverDelay) }
     }
-    /// Tab Lời (lrclib.net). Tắt sẵn vì phải gọi mạng.
+    /// Lời bài hát (lrclib.net). Tắt sẵn vì phải gọi mạng; bấm nút Lời trong trình phát sẽ hỏi bật.
     var lyricsEnabled = Pref.bool("notch.lyrics", false) {
         didSet {
             Pref.set("notch.lyrics", lyricsEnabled)
-            if !lyricsEnabled {
-                if tab == .lyrics { tab = .nowPlaying }
-                lyrics.clear()
-            }
+            if !lyricsEnabled { lyrics.clear() }
         }
+    }
+    /// Đang xem lời thay cho trình phát (nút Lời).
+    var showLyrics = Pref.bool("notch.showLyrics", false) {
+        didSet { Pref.set("notch.showLyrics", showLyrics) }
     }
     /// Bấm vào notch mới mở (thay vì rê chuột vào).
     var openOnClick = Pref.bool("notch.openOnClick", false) {
@@ -73,8 +86,10 @@ final class NotchModule: ZModule {
     /// Tâm hình lệch so với tâm notch (âm = sang trái).
     private(set) var shapeOffset: CGFloat = 0
     var tab: Tab = .nowPlaying
-    /// Thông báo ngắn hai bên notch lúc thu gọn (cắm sạc, hạn mức Claude đặt lại).
+    /// Thông báo ngắn hai bên notch lúc thu gọn (cắm sạc, âm lượng, độ sáng, hạn mức Claude đặt lại).
     private(set) var hud: NotchHUD?
+    /// Thẻ nhắc thả xuống dưới notch (pin yếu).
+    private(set) var alert: NotchAlert?
     private(set) var track: NowPlayingTrack?
     private(set) var shelf: [URL] = []
     private(set) var battery: BatterySnapshot?
@@ -84,6 +99,8 @@ final class NotchModule: ZModule {
     private(set) var hasTarget = false
     /// Claude Code đang chờ người dùng duyệt: giữ notch mở tới khi trả lời xong.
     private(set) var claudeAttention = false
+    /// Đã nhận phím âm lượng / độ sáng (có quyền Trợ năng).
+    private(set) var mediaKeysActive = false
 
     // MARK: Nội bộ
 
@@ -96,6 +113,10 @@ final class NotchModule: ZModule {
     @ObservationIgnored private var collapseWork: DispatchWorkItem?
     @ObservationIgnored private var resizeWork: DispatchWorkItem?
     @ObservationIgnored private var hudWork: DispatchWorkItem?
+    @ObservationIgnored private var alertWork: DispatchWorkItem?
+    @ObservationIgnored private var keyTap: MediaKeyTap?
+    @ObservationIgnored private var axObserver: NSObjectProtocol?
+    @ObservationIgnored private var lastPercent: Int?
     @ObservationIgnored private var screenObserver: NSObjectProtocol?
     @ObservationIgnored private var powerSource: CFRunLoopSource?
     @ObservationIgnored private var lastExternal: Bool?
@@ -108,6 +129,7 @@ final class NotchModule: ZModule {
         loadShelf()
         battery = BatteryReader.snapshot()
         lastExternal = battery?.externalConnected
+        lastPercent = battery?.percent
         nowPlaying.onChange = { [weak self] t in self?.trackChanged(t) }
         nowPlaying.start()
         startPower()
@@ -117,9 +139,11 @@ final class NotchModule: ZModule {
             MainActor.assumeIsolated { self?.rebuild() }
         }
         rebuild()
+        if mediaKeysHUD { startMediaKeys(prompt: false) }
     }
 
     func stop() {
+        stopMediaKeys()
         ModuleManager.shared.module(ClaudeModule.self)?.passAll()
         claudeAttention = false
         nowPlaying.stop()
@@ -127,8 +151,9 @@ final class NotchModule: ZModule {
         stopPower()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
-        for w in [expandWork, collapseWork, resizeWork, hudWork] { w?.cancel() }
-        expandWork = nil; collapseWork = nil; resizeWork = nil; hudWork = nil
+        for w in [expandWork, collapseWork, resizeWork, hudWork, alertWork] { w?.cancel() }
+        expandWork = nil; collapseWork = nil; resizeWork = nil; hudWork = nil; alertWork = nil
+        alert = nil
         closePanel()
         NotchIcons.cache.removeAll()
         lyrics.clear()
@@ -153,9 +178,15 @@ final class NotchModule: ZModule {
     var showsPet: Bool { pet != nil && hud == nil && (wingsBothSides || !showsLiveActivity) }
     var petWingWidth: CGFloat { notchHeight + 20 }
 
+    /// HUD có thanh mức (âm lượng, độ sáng): bên phải đủ chỗ cho thanh (44) và "100%" (to theo chiều cao notch).
+    var levelWingWidth: CGFloat { (notchHeight * 2 + 40).rounded() }
+
     /// Phần phình ra hai bên notch lúc thu gọn.
     var collapsedExtents: (left: CGFloat, right: CGFloat) {
-        if hud != nil { return wingsBothSides ? (wingWidth, wingWidth) : (leftWingWidth, 0) }
+        if let hud {
+            if hud.usesWideWings { return wingsBothSides ? (levelWingWidth, levelWingWidth) : (levelWingWidth + 40, 0) }
+            return wingsBothSides ? (wingWidth, wingWidth) : (leftWingWidth, 0)
+        }
         if wingsBothSides {
             // Đối xứng quanh notch: hai cánh luôn bằng nhau.
             guard showsLiveActivity || showsPet else { return (0, 0) }
@@ -173,18 +204,23 @@ final class NotchModule: ZModule {
     }
 
     var collapsedSize: CGSize {
+        if alert != nil { return alertSize }
         let e = collapsedExtents
         return CGSize(width: notchWidth + e.left + e.right, height: notchHeight)
     }
 
     var collapsedOffset: CGFloat {
+        if alert != nil { return 0 }
         let e = collapsedExtents
         return (e.right - e.left) / 2
     }
 
+    /// Thẻ nhắc thả xuống: rộng hơn notch một chút, cao thêm một hàng.
+    var alertSize: CGSize { CGSize(width: max(notchWidth + 190, 380), height: notchHeight + 62) }
+
     /// Vùng SwiftUI vẽ: đối xứng quanh notch, đủ chứa mọi trạng thái.
     private var canvasSize: CGSize {
-        let side = max((expandedSize.width - notchWidth) / 2, leftWingWidth, wingWidth)
+        let side = max((expandedSize.width - notchWidth) / 2, leftWingWidth, levelWingWidth + 40, (alertSize.width - notchWidth) / 2)
         return CGSize(width: notchWidth + 2 * side, height: max(expandedSize.height, notchHeight))
     }
 
@@ -210,10 +246,15 @@ final class NotchModule: ZModule {
     }
 
     var expandedSize: CGSize {
+        // Có cột lịch bên phải: rộng hơn, hàng trên cũng đủ chỗ cho "5h ·· 7d ··".
+        if showsCalendar { return CGSize(width: max(720, notchWidth + 500), height: notchHeight + 150) }
         // Hàng trên bên phải có thêm "5h ·· 7d ··" thì nới rộng cho đủ chỗ.
         let extra: CGFloat = showsClaudeUsage ? 100 : 0
         return CGSize(width: max(540 + extra, notchWidth + 300 + extra), height: notchHeight + 150)
     }
+
+    var calendar: CalendarModule? { ModuleManager.shared.module(CalendarModule.self) }
+    var showsCalendar: Bool { calendar != nil }
 
     var showsClaudeUsage: Bool {
         guard let c = ModuleManager.shared.module(ClaudeModule.self), c.showUsage else { return false }
@@ -369,7 +410,12 @@ final class NotchModule: ZModule {
     func setOpen(_ value: Bool) {
         guard open != value, panel != nil else { return }
         open = value
-        if value { battery = BatteryReader.snapshot() }
+        if value {
+            battery = BatteryReader.snapshot()
+            // Mở notch là đã thấy thẻ nhắc: thu lại thì không thả xuống nữa.
+            alertWork?.cancel()
+            alert = nil
+        }
         updateLayout()
     }
 
@@ -504,15 +550,98 @@ final class NotchModule: ZModule {
         let b = BatteryReader.snapshot()
         battery = b
         let external = b?.externalConnected ?? false
+        if external, alert != nil { dismissAlert() }
         if chargingHUD, lastExternal == false, external, let b {
             showHUD(NotchHUD(symbol: "bolt.fill", text: "\(b.percent)%", color: ZTheme.green.light))
         }
+        if lowBatteryAlert, !external, let b,
+           LowBattery.crossed(from: lastPercent, to: b.percent, thresholds: LowBattery.thresholds(lowBatteryLevel)) != nil {
+            showAlert(LowBattery.alert(percent: b.percent, lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled))
+        }
         lastExternal = external
+        lastPercent = b?.percent
+    }
+
+    // MARK: Thẻ nhắc
+
+    func showAlert(_ value: NotchAlert, seconds: Double = 7) {
+        guard panel != nil, !open else { return }
+        ModuleManager.shared.module(PetModule.self)?.poke()
+        alert = value
+        updateLayout()
+        alertWork?.cancel()
+        let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.dismissAlert() } }
+        alertWork = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: w)
+    }
+
+    func dismissAlert() {
+        alertWork?.cancel()
+        alertWork = nil
+        guard alert != nil else { return }
+        alert = nil
+        if !open { updateLayout() }
+    }
+
+    // MARK: Phím âm lượng / độ sáng
+
+    /// Cài tap nếu đã có quyền Trợ năng. Chưa có: `prompt` thì xin quyền; tap tự cài khi quyền được cấp.
+    private func startMediaKeys(prompt: Bool) {
+        if keyTap == nil {
+            let t = MediaKeyTap()
+            t.onPress = { [weak self] key, fine in self?.mediaKey(key, fine: fine) ?? false }
+            keyTap = t
+        }
+        if keyTap?.start() == true {
+            mediaKeysActive = true
+            stopAXObserver()
+            return
+        }
+        if prompt { Permissions.shared.requestAccessibility() }
+        guard axObserver == nil else { return }
+        axObserver = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.apple.accessibility.api"), object: nil, queue: .main
+        ) { [weak self] _ in
+            // Thông báo đến trước khi TCC cập nhật xong.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                MainActor.assumeIsolated {
+                    guard let self, self.mediaKeysHUD, self.keyTap?.isRunning == false else { return }
+                    self.startMediaKeys(prompt: false)
+                }
+            }
+        }
+    }
+
+    private func stopMediaKeys() {
+        keyTap?.stop()
+        keyTap = nil
+        mediaKeysActive = false
+        stopAXObserver()
+    }
+
+    private func stopAXObserver() {
+        if let axObserver { DistributedNotificationCenter.default().removeObserver(axObserver) }
+        axObserver = nil
+    }
+
+
+    /// Không có chỗ hiện HUD thì để macOS tự xử lý.
+    private func mediaKey(_ key: MediaKeyEvent.Key, fine: Bool) -> Bool {
+        guard panel != nil else { return false }
+        let hud: NotchHUD?
+        switch key {
+        case .volumeUp, .volumeDown, .mute: hud = MediaKeyActions.volume(key, fine: fine)
+        case .brightnessUp, .brightnessDown: hud = MediaKeyActions.brightness(key, fine: fine)
+        }
+        guard let hud else { return false }
+        showHUD(hud, seconds: 1.6)
+        return true
     }
 
     func showHUD(_ value: NotchHUD, seconds: Double = 2.5) {
         guard panel != nil else { return }
-        ModuleManager.shared.module(PetModule.self)?.poke()
+        // Bấm liền tay (âm lượng, độ sáng): chỉ đổi số, không chọc thú cưng mỗi lần.
+        if hud?.level == nil || value.level == nil { ModuleManager.shared.module(PetModule.self)?.poke() }
         hud = value
         if !open { updateLayout() }
         hudWork?.cancel()
@@ -539,8 +668,6 @@ final class NotchModule: ZModule {
                 }
                 Toggle(L("Hiện notch giả trên màn hình không có notch", "Show a virtual notch on screens without one"),
                        isOn: Binding(get: { self.showOnNonNotch }, set: { self.showOnNonNotch = $0 }))
-                Toggle(L("Báo pin khi cắm sạc", "Show battery when plugging in"),
-                       isOn: Binding(get: { self.chargingHUD }, set: { self.chargingHUD = $0 }))
                 Toggle(L("Hiện app đang phát nhạc cạnh notch", "Show the playing app beside the notch"),
                        isOn: Binding(get: { self.liveActivity }, set: { self.liveActivity = $0 }))
                 Picker(L("Lúc thu gọn, notch phình ra", "When closed, the notch extends"),
@@ -568,6 +695,38 @@ final class NotchModule: ZModule {
                     }
                 }
             }
+            Section(L("Âm lượng, độ sáng", "Volume and brightness")) {
+                Toggle(L("Hiện trên notch thay HUD của macOS", "Show on the notch instead of the macOS HUD"),
+                       isOn: Binding(get: { self.mediaKeysHUD }, set: { self.mediaKeysHUD = $0 }))
+                if mediaKeysHUD && !mediaKeysActive {
+                    HStack {
+                        Label(L("Cần quyền Trợ năng để nhận phím", "Needs Accessibility to receive the keys"),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Spacer()
+                        Button(L("Cấp quyền", "Grant")) { Permissions.shared.requestAccessibility() }
+                    }
+                    .font(.callout)
+                }
+                Text(L("zMac chỉ nhận phím âm lượng và độ sáng, phím chữ không đi qua zMac. Phím độ sáng chỉnh màn hình đang có con trỏ chuột, kể cả màn ngoài (DDC hoặc làm tối bằng phần mềm). Giữ ⇧⌥ để chỉnh từng nấc nhỏ. Loa không có âm lượng phần cứng (TV qua HDMI) thì chỉnh bằng điều khiển của loa.",
+                       "zMac only receives the volume and brightness keys; your typing never passes through it. Brightness keys adjust the screen under the pointer, external ones too (DDC or software dimming). Hold ⇧⌥ for fine steps. Outputs without hardware volume (a TV over HDMI) are set with their own remote."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section(L("Pin", "Battery")) {
+                Toggle(L("Báo pin khi cắm sạc", "Show battery when plugging in"),
+                       isOn: Binding(get: { self.chargingHUD }, set: { self.chargingHUD = $0 }))
+                Toggle(L("Cảnh báo pin yếu", "Low battery warning"),
+                       isOn: Binding(get: { self.lowBatteryAlert }, set: { self.lowBatteryAlert = $0 }))
+                if lowBatteryAlert {
+                    Picker(L("Báo lần đầu khi còn", "First warning at"),
+                           selection: Binding(get: { self.lowBatteryLevel }, set: { self.lowBatteryLevel = $0 })) {
+                        ForEach([30, 20, 15, 10], id: \.self) { Text("\($0)%").tag($0) }
+                    }
+                    Text(L("Sau đó báo thêm ở 10% và 5%. Chỉ báo khi đang dùng pin, cắm sạc là thẻ tự đóng.",
+                           "Then again at 10% and 5%. Only on battery; plugging in dismisses it."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
             Section(L("Kệ file", "File shelf")) {
                 LabeledContent(L("Đang để", "Holding"), value: "\(shelf.count) file")
                 Button(L("Xoá kệ", "Clear shelf")) { self.clearShelf() }
@@ -580,10 +739,10 @@ final class NotchModule: ZModule {
                 Text(L("Đọc bài đang phát và ảnh bìa từ mọi trình phát, kể cả trình duyệt, qua một tiến trình nhỏ (khoảng 6 MB) chỉ chạy khi bật Notch. Nút phát, chuyển bài gửi thẳng tới trình phát đó.",
                        "Reads what's playing, with album art, from any player including browsers, through a small process (about 6 MB) that only runs while Notch is on. Play and skip go straight to that player."))
                     .font(.caption).foregroundStyle(.secondary)
-                Toggle(L("Lời bài hát (tab Lời)", "Lyrics (Lyrics tab)"),
+                Toggle(L("Lời bài hát (nút Lời trong trình phát)", "Lyrics (Lyrics button in the player)"),
                        isOn: Binding(get: { self.lyricsEnabled }, set: { self.lyricsEnabled = $0 }))
-                Text(L("Lời lấy từ lrclib.net (miễn phí, mã nguồn mở). zMac chỉ gửi tên bài, ca sĩ, album và độ dài, và chỉ khi bạn mở tab Lời. Lời có mốc thời gian sẽ chạy theo nhạc.",
-                       "Lyrics come from lrclib.net (free and open source). zMac only sends the title, artist, album and length, and only when you open the Lyrics tab. Time-synced lyrics follow the music."))
+                Text(L("Lời lấy từ lrclib.net (miễn phí, mã nguồn mở). zMac chỉ gửi tên bài, ca sĩ, album và độ dài, và chỉ khi đang xem lời. Lời có mốc thời gian sẽ chạy theo nhạc.",
+                       "Lyrics come from lrclib.net (free and open source). zMac only sends the title, artist, album and length, and only while lyrics are showing. Time-synced lyrics follow the music."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -594,6 +753,43 @@ struct NotchHUD: Equatable {
     var symbol: String
     var text: String
     var color: Color
+    /// 0...1: vẽ thêm thanh mức (âm lượng, độ sáng).
+    var level: Double?
+    /// Chữ dài hơn số % (vd "Chỉnh trên TV"): cánh rộng như HUD có thanh mức.
+    var wide = false
+
+    var usesWideWings: Bool { level != nil || wide }
+}
+
+/// Thẻ nhắc thả xuống dưới notch.
+struct NotchAlert: Equatable {
+    var symbol: String
+    var tint: Color
+    var title: String
+    /// Phần nổi bật cạnh tiêu đề ("10%").
+    var value: String
+    var detail: String
+}
+
+/// Cảnh báo pin yếu (hàm thuần, có test).
+enum LowBattery {
+    /// Mốc báo: mốc người dùng chọn, rồi 10% và 5%.
+    static func thresholds(_ level: Int) -> [Int] {
+        Set([level, 10, 5].filter { $0 > 0 && $0 <= max(level, 5) }).sorted(by: >)
+    }
+
+    /// Mốc vừa tụt qua (pin giảm từ trên mốc xuống bằng / dưới mốc). nil = không báo.
+    static func crossed(from old: Int?, to new: Int, thresholds: [Int]) -> Int? {
+        guard let old, new < old else { return nil }
+        return thresholds.filter { new <= $0 && old > $0 }.min()
+    }
+
+    @MainActor static func alert(percent: Int, lowPower: Bool) -> NotchAlert {
+        NotchAlert(symbol: percent <= 10 ? "battery.0percent" : "battery.25percent", tint: Color(hex: 0xFF5F57),
+                   title: L("Pin yếu", "Low battery"), value: "\(percent)%",
+                   detail: lowPower ? L("Đã bật Chế độ nguồn điện thấp. Cắm sạc sớm nhé.", "Low Power Mode is on. Plug in soon.")
+                                    : L("Bật Chế độ nguồn điện thấp hoặc cắm sạc.", "Turn on Low Power Mode or plug in."))
+    }
 }
 
 // MARK: - Panel và view chứa
@@ -676,11 +872,13 @@ final class NotchHostingView: NSHostingView<NotchRootView> {
 #if DEBUG
 extension NotchModule {
     /// Chỉ cho `--render-ui`: dựng trạng thái notch với một bài mẫu, không mở panel thật.
-    func preview(open: Bool, track: NowPlayingTrack?, hud: NotchHUD?) {
-        notchWidth = 185
-        notchHeight = 32
+    func preview(open: Bool, track: NowPlayingTrack?, hud: NotchHUD?, alert: NotchAlert? = nil,
+                 notch: CGSize = CGSize(width: 185, height: 32)) {
+        notchWidth = notch.width
+        notchHeight = notch.height
         self.track = track
         self.hud = hud
+        self.alert = alert
         self.open = open
         contentOpen = open
         shapeSize = open ? expandedSize : collapsedSize

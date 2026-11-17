@@ -38,7 +38,8 @@ struct NotchRootView: View {
     var body: some View {
         let size = model.shapeSize
         let open = model.contentOpen
-        let shape = NotchShape(top: open ? 12 : 6, bottom: open ? 24 : 10)
+        let card = open || model.alert != nil
+        let shape = NotchShape(top: card ? 12 : 6, bottom: open ? 24 : (card ? 20 : 10))
         ZStack(alignment: .top) {
             shape.fill(Color.black)
                 .frame(width: size.width, height: size.height)
@@ -60,6 +61,13 @@ struct NotchRootView: View {
             // Nội dung đặt ở kích thước cuối, hình animate thì chỉ cắt bớt: không layout lại chữ mỗi khung hình.
             NotchExpandedView(model: model)
                 .frame(width: model.expandedSize.width, height: model.expandedSize.height)
+                .transition(.opacity)
+        } else if let alert = model.alert {
+            NotchAlertView(model: model, alert: alert)
+                .frame(width: model.alertSize.width, height: model.alertSize.height)
+                .transition(.opacity)
+        } else if let hud = model.hud, hud.usesWideWings {
+            NotchLevelHUD(model: model, hud: hud)
                 .transition(.opacity)
         } else if let hud = model.hud {
             NotchWings(model: model) {
@@ -116,6 +124,106 @@ struct NotchRootView: View {
             }
             .transition(.opacity)
         }
+    }
+}
+
+/// Âm lượng / độ sáng: icon bên trái, thanh mức và số % bên phải (chỉ bên trái thì cả ba nằm bên trái).
+/// Không có mức (loa không chỉnh được) thì bên phải chỉ là chữ.
+struct NotchLevelHUD: View {
+    let model: NotchModule
+    let hud: NotchHUD
+
+    var body: some View {
+        let e = model.collapsedExtents
+        let h = model.notchHeight
+        HStack(spacing: 0) {
+            if model.wingsBothSides {
+                icon.frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 16)
+                    .frame(width: e.left, height: h)
+                Color.clear.frame(width: model.notchWidth)
+                meter.frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 16)
+                    .frame(width: e.right, height: h)
+            } else {
+                HStack(spacing: 9) { icon; meter }
+                    .frame(width: e.left, height: h)
+                Color.clear.frame(width: model.notchWidth)
+            }
+        }
+        .frame(width: model.notchWidth + e.left + e.right, height: h)
+    }
+
+    private var icon: some View {
+        Image(systemName: hud.symbol)
+            .font(.system(size: model.notchHeight * 0.4, weight: .semibold))
+            .foregroundStyle(hud.color)
+            .contentTransition(.symbolEffect(.replace))
+            .frame(width: model.notchHeight * 0.66)
+    }
+
+    @ViewBuilder private var meter: some View {
+        if let level = hud.level {
+            HStack(spacing: 8) {
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(hud.color.opacity(0.2))
+                        Capsule().fill(hud.color)
+                            .frame(width: max(g.size.height, g.size.width * min(max(level, 0), 1)))
+                            .opacity(level > 0 ? 1 : 0)
+                    }
+                }
+                .frame(width: 44, height: 6)
+                // Luôn chừa đủ chỗ cho "100%" theo đúng cỡ chữ (notch cao thì chữ to), số đổi không làm thanh nhảy.
+                ZStack(alignment: .trailing) {
+                    Text("100%").hidden()
+                    Text(hud.text).foregroundStyle(hud.color)
+                }
+                .font(.system(size: model.notchHeight * 0.34, weight: .semibold).monospacedDigit())
+                .lineLimit(1)
+                .fixedSize()
+            }
+            .animation(.easeOut(duration: 0.14), value: level)
+        } else {
+            Text(hud.text)
+                .font(.system(size: model.notchHeight * 0.33, weight: .semibold))
+                .foregroundStyle(hud.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+    }
+}
+
+/// Thẻ nhắc thả xuống dưới notch (pin yếu): hàng notch để trống, nội dung nằm bên dưới.
+struct NotchAlertView: View {
+    let model: NotchModule
+    let alert: NotchAlert
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: model.notchHeight)
+            HStack(spacing: 12) {
+                Image(systemName: alert.symbol)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(alert.tint)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(alert.tint.opacity(0.18)))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(alert.title).foregroundStyle(.white)
+                        Text(alert.value).foregroundStyle(alert.tint).monospacedDigit()
+                    }
+                    .font(.system(size: 13.5, weight: .bold))
+                    Text(alert.detail)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 22)
+            .frame(maxHeight: .infinity)
+        }
+        .environment(\.colorScheme, .dark)
     }
 }
 
@@ -242,18 +350,15 @@ struct NotchExpandedView: View {
                     ClaudeRequestCard(module: claude, request: request, count: claude.pending.count)
                         .id(request.id)
                         .transition(.opacity)
-                } else {
-                    switch model.tab {
-                    case .nowPlaying: NotchNowPlayingView(model: model)
-                    case .lyrics: NotchLyricsView(model: model)
-                    case .shelf: NotchShelfView(model: model)
-                    case .pet:
-                        if let pet = ModuleManager.shared.module(PetModule.self) {
-                            PetTabView(pet: pet, musicPlaying: model.track?.isPlaying == true)
-                        } else {
-                            NotchNowPlayingView(model: model)
-                        }
+                } else if let cal = model.calendar {
+                    // Lịch luôn ở cột phải, tab (nhạc / lời / kệ / thú cưng) ở cột trái.
+                    HStack(spacing: 0) {
+                        tabContent.frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Rectangle().fill(.white.opacity(0.1)).frame(width: 1).padding(.vertical, 4).padding(.horizontal, 18)
+                        NotchCalendarView(cal: cal).frame(width: 238)
                     }
+                } else {
+                    tabContent
                 }
             }
             .padding(.horizontal, 24)
@@ -262,6 +367,19 @@ struct NotchExpandedView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .foregroundStyle(.white)
+    }
+
+    @ViewBuilder private var tabContent: some View {
+        switch model.tab {
+        case .nowPlaying: NotchNowPlayingView(model: model)
+        case .shelf: NotchShelfView(model: model)
+        case .pet:
+            if let pet = ModuleManager.shared.module(PetModule.self) {
+                PetTabView(pet: pet, musicPlaying: model.track?.isPlaying == true, compact: model.showsCalendar)
+            } else {
+                NotchNowPlayingView(model: model)
+            }
+        }
     }
 
     /// Có yêu cầu Claude đang chờ thì thẻ duyệt thay cho tab nhạc / kệ.
@@ -284,9 +402,6 @@ struct NotchExpandedView: View {
     private var tabs: some View {
         HStack(spacing: 4) {
             tabButton(.nowPlaying, symbol: "music.note", title: L("Nhạc", "Music"))
-            if model.lyricsEnabled {
-                tabButton(.lyrics, symbol: "quote.bubble", title: L("Lời", "Lyrics"))
-            }
             tabButton(.shelf, symbol: "tray", title: L("Kệ", "Shelf") + (model.shelf.isEmpty ? "" : " \(model.shelf.count)"))
             if hasPetTab {
                 tabButton(.pet, symbol: "pawprint.fill", title: ModuleManager.shared.module(PetModule.self)?.displayName ?? L("Thú cưng", "Pet"))
@@ -296,10 +411,10 @@ struct NotchExpandedView: View {
 
     private var hasPetTab: Bool { ModuleManager.shared.module(PetModule.self) != nil }
 
-    /// Ba tab trở lên thì tab không chọn chỉ còn icon, để hàng trên không chật.
+    /// Có tab thú cưng (ba tab) thì tab không chọn chỉ còn icon, để hàng trên không chật.
     private func tabButton(_ tab: NotchModule.Tab, symbol: String, title: String) -> some View {
         let selected = model.tab == tab
-        let compact = (model.lyricsEnabled || hasPetTab) && !selected
+        let compact = hasPetTab && !selected
         return Button { withAnimation(.easeInOut(duration: 0.2)) { model.tab = tab } } label: {
             Label(title, systemImage: symbol)
                 .labelStyle(TabLabelStyle(iconOnly: compact))
@@ -338,7 +453,7 @@ struct NotchExpandedView: View {
                     if !model.showsClaudeUsage { Text("\(b.percent)%").monospacedDigit() }
                 }
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(b.externalConnected ? Color.green : Color.white.opacity(0.85))
+                .foregroundStyle(b.externalConnected ? Color.green : (b.percent <= 10 ? Color(hex: 0xFF5F57) : Color.white.opacity(0.85)))
                 .help("\(b.percent)%")
             }
         }
@@ -371,6 +486,14 @@ struct NotchNowPlayingView: View {
     let model: NotchModule
 
     var body: some View {
+        if model.showLyrics {
+            NotchLyricsView(model: model)
+        } else {
+            player
+        }
+    }
+
+    @ViewBuilder private var player: some View {
         let tint = ArtworkColor.of(model.track?.artwork)
         HStack(spacing: 18) {
             Button { model.openPlayer() } label: {
@@ -382,9 +505,15 @@ struct NotchNowPlayingView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 if let t = model.track {
-                    Text(t.title).font(.system(size: 15, weight: .bold)).lineLimit(1)
-                    Text(t.artist.isEmpty ? t.album : t.artist)
-                        .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                    HStack(alignment: .top, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t.title).font(.system(size: 15, weight: .bold)).lineLimit(1)
+                            Text(t.artist.isEmpty ? t.album : t.artist)
+                                .font(.system(size: 12.5)).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        LyricsToggle(model: model)
+                    }
                 } else {
                     Text(L("Chưa có nhạc đang phát", "Nothing playing")).font(.system(size: 15, weight: .bold))
                     Text(L("Phát nhạc ở bất kỳ app nào, kể cả trình duyệt, bài sẽ hiện ở đây.",

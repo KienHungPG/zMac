@@ -40,6 +40,20 @@ import Testing
     #expect(LRC.cleanTitle("Song [Lyrics] (feat. Someone)") == "Song")
     #expect(LRC.cleanTitle("Bài (Live) [MV]") == "Bài (Live)")
     #expect(LRC.cleanTitle("  Khoảng   trắng  ") == "Khoảng trắng")
+    #expect(LRC.cleanTitle("Đen - Mười Năm ft. Ngọc Linh (M/V)") == "Đen - Mười Năm")
+    #expect(LRC.cleanTitle("Lift Me Up") == "Lift Me Up")
+}
+
+@Test func cleansYouTubeArtistAndSplitsTitle() {
+    #expect(LRC.cleanArtist("Đen Vâu Official") == "Đen Vâu")
+    #expect(LRC.cleanArtist("Hoàng Dũng - Topic") == "Hoàng Dũng")
+    #expect(LRC.cleanArtist("AdeleVEVO") == "Adele")
+    #expect(LRC.cleanArtist("Official") == "Official")
+    let split = LRC.splitTitle("Đen - Mười Năm")
+    #expect(split?.artist == "Đen")
+    #expect(split?.title == "Mười Năm")
+    #expect(LRC.splitTitle("Không có gạch") == nil)
+    #expect(LRC.splitTitle("- Thiếu ca sĩ") == nil)
 }
 
 @Test func picksBestRecord() {

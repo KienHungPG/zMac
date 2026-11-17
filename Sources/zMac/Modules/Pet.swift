@@ -242,14 +242,16 @@ struct PetWingView: View {
 struct PetTabView: View {
     let pet: PetModule
     let musicPlaying: Bool
+    /// Notch có cột lịch: sân chơi hẹp lại, nút chỉ còn icon.
+    var compact = false
 
     var body: some View {
         let now = Date().timeIntervalSince1970
         let food = pet.stats.food(at: now)
         let joy = pet.stats.joy(at: now)
-        HStack(spacing: 22) {
+        HStack(spacing: compact ? 16 : 22) {
             PetStage(pet: pet, musicPlaying: musicPlaying)
-                .frame(width: 210, height: 100)
+                .frame(width: compact ? 150 : 210, height: 100)
                 .contentShape(Rectangle())
                 .onTapGesture { pet.pat() }
                 .help(L("Bấm để vuốt ve", "Click to pat"))
@@ -279,12 +281,16 @@ struct PetTabView: View {
     private func action(_ title: String, _ symbol: String, _ run: @escaping () -> Void) -> some View {
         Button(action: run) {
             Label(title, systemImage: symbol)
+                .labelStyle(TabLabelStyle(iconOnly: compact))
                 .font(.system(size: 10.5, weight: .semibold))
-                .padding(.horizontal, 9).padding(.vertical, 5)
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, compact ? 11 : 9).padding(.vertical, 5)
                 .background(Capsule().fill(.white.opacity(0.12)))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .help(title)
     }
 }
 

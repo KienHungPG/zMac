@@ -63,7 +63,7 @@ Ký và đóng gói: `scripts/update-sign.swift`, `scripts/make-release.sh` (ch�
 | `zMac` | App |
 | `zmac-helper` | Daemon |
 | `zmac-claude-hook` | Hook PermissionRequest của Claude Code, chỉ Foundation |
-| `zMacTests` | swift-testing: `ChargeLogic`, `SnapGeometry`, `NowPlayingAdapter`, `KeyCombo`, Claude, lời bài hát, thú cưng, cập nhật |
+| `zMacTests` | swift-testing: `ChargeLogic`, `SnapGeometry`, `NowPlayingAdapter`, `KeyCombo`, Claude, lời bài hát, thú cưng, cập nhật, phím media, pin yếu, link họp |
 
 ## Module
 
@@ -83,8 +83,10 @@ Mỗi module là một class `@MainActor @Observable` theo giao thức `ZModule`
 | `Battery.swift` | Pin | IOPS run loop source, XPC tới daemon |
 | `Audio.swift`, `AudioTap.swift` | Âm thanh | CoreAudio listener, process tap + aggregate device riêng tư khi cần |
 | `Notch.swift`, `NotchViews.swift`, `NotchNowPlaying.swift`, `NowPlayingAdapter.swift` | Notch | NSPanel trên notch (khung cửa sổ có thể lệch trái, canvas SwiftUI luôn căn giữa notch), NSTrackingArea, mediaremote-adapter (stream JSON, gửi lệnh phát / chuyển bài); lùi về distributed notification Music/Spotify và phím media |
-| `Claude.swift` | Claude Code | Unix socket nghe bằng DispatchSource, mỗi yêu cầu giữ kết nối tới khi bấm; giữ notch mở (`setClaudeAttention`) và hiện thẻ duyệt thay tab nhạc |
-| `Lyrics.swift` | Notch (tab Lời) | lrclib.net qua URLSession ephemeral, chỉ khi mở tab (`.task(id:)`), cache trong bộ nhớ 30 bài; đổi dòng bằng `TimelineView(.explicit)` |
+| `MediaKeys.swift` | Notch (âm lượng, độ sáng) | Event tap chỉ NX_SYSDEFINED, nuốt phím âm lượng / độ sáng rồi tự chỉnh (CoreAudio, DisplayServices, module Màn hình) và hiện HUD có thanh mức trên notch; phím có ⌘ ⌃ ⌥ trả cho macOS |
+| `Calendar.swift` | Lịch | EventKit, chỉ đọc khi notch mở và cột lịch hiện; `EKEventStoreChanged`, `NSCalendarDayChanged` chỉ đánh dấu cũ lúc notch đóng; link Meet / Zoom / Teams / Webex bằng `MeetingLink` (hàm thuần) |
+| `Claude.swift` | Claude Code | Unix socket nghe bằng DispatchSource, mỗi yêu cầu giữ kết nối tới khi bấm; giữ notch mở (`setClaudeAttention`) và hiện thẻ duyệt thay tab nhạc. AskUserQuestion hiện câu hỏi kèm lựa chọn, ExitPlanMode hiện kế hoạch; hai công cụ này phải trả `allow` kèm `updatedInput` (input gốc, thêm `answers` dạng câu hỏi → nhãn, chọn nhiều nối ", "), hook chuyển nguyên trường đó. Hạn mức chỉ hiện khi `cachedUsageUtilization.accountUuid` trùng tài khoản đang đăng nhập |
+| `Lyrics.swift` | Notch (nút Lời) | lrclib.net qua URLSession ephemeral, chỉ khi đang xem lời (`.task(id:)`), tối đa 5 yêu cầu mỗi bài, cache trong bộ nhớ 30 bài; đổi dòng bằng `TimelineView(.explicit)` |
 | `Pet.swift`, `PetSprites.swift` | Thú cưng | Lưới ký tự 14 cột (vẽ nửa trái, lật gương) vẽ bằng Canvas; chỉ số No / Vui tính từ mốc thời gian, không timer; chỉ chuyển động khi tab mở hoặc vài giây sau sự kiện ở notch |
 | `KeepAwake.swift` | Giữ máy thức | IOPMAssertion + một hẹn giờ một lần |
 
@@ -97,7 +99,9 @@ Mỗi module là một class `@MainActor @Observable` theo giao thức `ZModule`
    leeway 50% để gộp lần đánh thức.
    Tiến trình adapter "Đang phát" là tiến trình riêng duy nhất ngoài daemon pin: cũng theo sự kiện, chỉ chạy khi bật Notch,
    `stop()` dừng nó, app thoát thì `stopAll()` dừng theo.
-2. **Không nằm trên đường đi của input.** Phím tắt là Carbon hotkey, không dùng `CGEventTap`. Global monitor chỉ thụ động,
+2. **Không nằm trên đường đi của input.** Phím tắt là Carbon hotkey, không dùng `CGEventTap`. Ngoại lệ duy nhất (người
+   dùng đồng ý 2026-11-17): `MediaKeyTap` chỉ đăng ký NX_SYSDEFINED để thay HUD âm lượng / độ sáng, phím chữ và chuột
+   không đi qua; không thêm loại sự kiện nào khác vào mask. Global monitor chỉ thụ động,
    và chỉ cài khi cần (đang giữ ⌥ trong ⌥Tab, kéo chuột trái cho chia cửa sổ).
 3. **Chỉ làm nặng khi người dùng cần.** Tap âm thanh chỉ khi app khác 100% / tắt tiếng / đổi loa. Thumbnail ⌥Tab mặc định tắt.
    I/O DDC trên hàng đợi nền, chỉ gửi giá trị cuối khi kéo thanh trượt.

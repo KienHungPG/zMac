@@ -2,8 +2,9 @@ import Foundation
 import Observation
 import SwiftUI
 
-// Lời bài hát từ lrclib.net (miễn phí, không cần khoá). Tắt sẵn; bật rồi cũng chỉ gọi mạng khi người dùng mở tab Lời.
-// Mỗi bài tối đa 3 yêu cầu, chỉ gửi tên bài, ca sĩ, album, độ dài. Kết quả giữ trong bộ nhớ, không ghi đĩa.
+// Lời bài hát từ lrclib.net (miễn phí, không cần khoá). Tắt sẵn; bật rồi cũng chỉ gọi mạng khi người dùng bấm nút Lời
+// trong trình phát ở notch. Mỗi bài tối đa 5 yêu cầu (dừng ngay khi thấy), chỉ gửi tên bài, ca sĩ, album, độ dài.
+// Kết quả giữ trong bộ nhớ, không ghi đĩa.
 // Lời có mốc thời gian thì đổi dòng bằng TimelineView(.explicit) đúng lúc dòng kế tiếp bắt đầu, không timer lặp.
 
 struct LyricLine: Equatable {
@@ -85,7 +86,36 @@ enum LRC {
                 }
             }
         }
+        // "Tên bài ft. Ca sĩ khác" (không ngoặc): bỏ từ "ft." / "feat." trở đi.
+        for marker in [" ft. ", " feat. ", " ft ", " feat ", " featuring "] {
+            if let r = t.range(of: marker, options: .caseInsensitive) {
+                t = String(t[..<r.lowerBound])
+                break
+            }
+        }
         return t.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    /// Tên kênh YouTube thay cho ca sĩ: "Sơn Tùng M-TP Official", "Đen - Topic", "AdeleVEVO".
+    static func cleanArtist(_ artist: String) -> String {
+        var a = artist.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        for suffix in [" - Topic", " Official Channel", " Official", "VEVO"] {
+            if a.count > suffix.count, a.lowercased().hasSuffix(suffix.lowercased()) {
+                a = String(a.dropLast(suffix.count))
+            }
+        }
+        return a.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    /// Tên video dạng "Ca sĩ - Tên bài": tách ra để tìm theo đúng ca sĩ.
+    static func splitTitle(_ title: String) -> (artist: String, title: String)? {
+        for sep in [" - ", " – ", " — "] {
+            guard let r = title.range(of: sep) else { continue }
+            let a = title[..<r.lowerBound].split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            let t = title[r.upperBound...].split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            if !a.isEmpty && !t.isEmpty { return (a, t) }
+        }
+        return nil
     }
 }
 
@@ -202,29 +232,42 @@ final class LyricsStore {
         return "zMac/\(v) (https://zmac-website.vercel.app)"
     }()
 
-    /// /api/get khớp chính xác, rồi /api/search theo tên + ca sĩ, cuối cùng tìm tự do.
+    /// Lần lượt: /api/get khớp chính xác; tìm theo tên + ca sĩ; tên video "Ca sĩ - Tên bài" tách ra; tìm tự do
+    /// "ca sĩ tên bài"; cuối cùng chỉ tên bài (cần độ dài để lọc bài trùng tên). Dừng ngay khi có lời chạy theo nhạc;
+    /// chỉ thấy lời không mốc thời gian thì giữ lại và tìm tiếp (lrclib hay có nhiều bản cho cùng một bài).
     nonisolated static func fetch(_ q: Query) async throws -> Lyrics? {
         let title = LRC.cleanTitle(q.title)
         guard !title.isEmpty else { return nil }
+        let artist = LRC.cleanArtist(q.artist)
         let duration = q.duration.flatMap { $0 > 0 ? $0 : nil }
-        if let d = duration, !q.artist.isEmpty, !q.album.isEmpty,
-           let obj = try await request("/api/get", ["track_name": title, "artist_name": q.artist,
-                                                    "album_name": q.album, "duration": String(Int(d.rounded()))]),
-           let lyrics = LrclibRecord(obj)?.lyrics {
-            return lyrics
+        var fallback: Lyrics?
+        /// true = đã có lời chạy theo nhạc, dừng.
+        func take(_ l: Lyrics?) -> Bool {
+            guard let l else { return false }
+            if case .synced = l { return true }
+            if fallback == nil { fallback = l }
+            return false
         }
-        var params = ["track_name": title]
-        if !q.artist.isEmpty { params["artist_name"] = q.artist }
-        if let list = try await request("/api/search", params) as? [Any],
-           let r = LrclibRecord.best(list.compactMap(LrclibRecord.init), duration: duration) {
-            return r.lyrics
+        if let d = duration, !artist.isEmpty, !q.album.isEmpty {
+            let obj = try await request("/api/get", ["track_name": title, "artist_name": artist,
+                                                     "album_name": q.album, "duration": String(Int(d.rounded()))])
+            let l = obj.flatMap(LrclibRecord.init)?.lyrics
+            if take(l) { return l }
         }
-        let free = q.artist.isEmpty ? title : "\(q.artist) \(title)"
-        if let list = try await request("/api/search", ["q": free]) as? [Any],
-           let r = LrclibRecord.best(list.compactMap(LrclibRecord.init), duration: duration) {
-            return r.lyrics
+        func search(_ params: [String: String]) async throws -> Lyrics? {
+            guard let list = try await request("/api/search", params) as? [Any] else { return nil }
+            return LrclibRecord.best(list.compactMap(LrclibRecord.init), duration: duration)?.lyrics
         }
-        return nil
+        var stages: [[String: String]] = []
+        stages.append(artist.isEmpty ? ["track_name": title] : ["track_name": title, "artist_name": artist])
+        if let split = LRC.splitTitle(title) { stages.append(["track_name": split.title, "artist_name": split.artist]) }
+        stages.append(["q": artist.isEmpty ? title : "\(artist) \(title)"])
+        if !artist.isEmpty, duration != nil { stages.append(["q": title]) }
+        for params in stages {
+            let l = try await search(params)
+            if take(l) { return l }
+        }
+        return fallback
     }
 
     private nonisolated static func request(_ path: String, _ params: [String: String]) async throws -> Any? {
@@ -247,24 +290,87 @@ final class LyricsStore {
     }
 }
 
-// MARK: - Giao diện (tab Lời trên notch)
+// MARK: - Giao diện (lời thay chỗ trình phát trên notch)
+
+/// Nút Lời trong trình phát: bật thì lời thay chỗ ảnh bìa và nút điều khiển.
+/// Lúc chưa xem lời thì có chữ "Lời" cho dễ thấy; đang xem lời thì chỉ còn icon trên nền trắng.
+struct LyricsToggle: View {
+    let model: NotchModule
+
+    var body: some View {
+        let on = model.showLyrics
+        Button { withAnimation(.easeInOut(duration: 0.2)) { model.showLyrics.toggle() } } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "quote.bubble.fill").font(.system(size: 11, weight: .bold))
+                if !on { Text(L("Lời", "Lyrics")).font(.system(size: 11, weight: .semibold)) }
+            }
+            .foregroundStyle(on ? Color.black : Color.white.opacity(0.85))
+            .padding(.horizontal, on ? 0 : 9)
+            .frame(minWidth: 26, minHeight: 26)
+            .background(Capsule().fill(on ? Color.white : Color.white.opacity(0.13)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(on ? L("Ẩn lời bài hát", "Hide lyrics") : L("Lời bài hát", "Lyrics"))
+    }
+}
 
 struct NotchLyricsView: View {
     let model: NotchModule
 
     var body: some View {
-        if let t = model.track {
-            HStack(spacing: 18) {
-                NotchArtwork(track: t, size: 64, corner: 12)
-                content(t)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Button { model.openPlayer() } label: { NotchArtwork(track: model.track, size: 36, corner: 8) }
+                    .buttonStyle(.plain)
+                    .help(L("Mở trình phát", "Open player"))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(model.track?.title ?? L("Chưa có nhạc đang phát", "Nothing playing"))
+                        .font(.system(size: 13, weight: .bold)).lineLimit(1)
+                    if let t = model.track {
+                        Text(t.artist.isEmpty ? t.album : t.artist)
+                            .font(.system(size: 11)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 6)
+                if model.track != nil {
+                    NotchControl(symbol: model.track?.isPlaying == true ? "pause.fill" : "play.fill", size: 12) {
+                        model.playPause()
+                    }
+                }
+                LyricsToggle(model: model)
             }
-            .task(id: LyricsStore.key(t)) { await model.lyrics.load(for: t) }
-        } else {
-            Text(L("Chưa có nhạc đang phát", "Nothing playing"))
-                .font(.system(size: 13, weight: .semibold))
+            Group {
+                if !model.lyricsEnabled {
+                    consent
+                } else if let t = model.track {
+                    content(t).task(id: LyricsStore.key(t)) { await model.lyrics.load(for: t) }
+                } else {
+                    message(L("Phát một bài để xem lời", "Play a song to see its lyrics"))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        }
+    }
+
+    /// Lời bài hát cần mạng: hỏi một lần, bấm là bật.
+    private var consent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("Lời lấy từ lrclib.net (miễn phí, mã nguồn mở). zMac chỉ gửi tên bài, ca sĩ, album và độ dài.",
+                   "Lyrics come from lrclib.net (free and open source). zMac only sends the title, artist, album and length."))
+                .font(.system(size: 11.5))
                 .foregroundStyle(.white.opacity(0.6))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { model.lyricsEnabled = true } label: {
+                Text(L("Bật lời bài hát", "Turn on lyrics"))
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(.white))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -322,11 +428,11 @@ struct SyncedLyricsView: View {
         let cur = current ?? -1
         let first = max(cur - 1, 0)
         let last = min(max(cur, 0) + 2, lines.count - 1)
-        return VStack(alignment: .leading, spacing: 5) {
+        return VStack(alignment: .leading, spacing: 4) {
             if first <= last {
                 ForEach(first...last, id: \.self) { i in
                     Text(lines[i].text.isEmpty ? "♪" : lines[i].text)
-                        .font(.system(size: i == cur ? 16 : 12.5, weight: i == cur ? .bold : .medium))
+                        .font(.system(size: i == cur ? 15 : 12.5, weight: i == cur ? .bold : .medium))
                         .foregroundStyle(.white.opacity(i == cur ? 1 : (i < cur ? 0.3 : 0.45)))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
@@ -334,7 +440,7 @@ struct SyncedLyricsView: View {
                 }
             }
         }
-        .frame(maxHeight: .infinity, alignment: .center)
+        .frame(maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.35), value: cur)
     }
 }

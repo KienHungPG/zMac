@@ -561,8 +561,8 @@ struct PerformancePane: View {
                              "One process instead of seven apps: one shared Swift, AppKit and SwiftUI runtime."))
                     Bullet(L("Tính năng tắt thì không được tạo: không phím tắt, không listener, không bộ nhớ.",
                              "Disabled features are never created: no shortcuts, listeners or memory."))
-                    Bullet(L("Phím tắt Carbon thay vì CGEventTap: phím bạn gõ không đi qua zMac.",
-                             "Carbon hotkeys instead of a CGEventTap: your typing never passes through zMac."))
+                    Bullet(L("Phím tắt Carbon thay vì CGEventTap: phím bạn gõ không đi qua zMac. Chỉ phím âm lượng, độ sáng đi qua một tap riêng để hiện trên notch.",
+                             "Carbon hotkeys instead of a CGEventTap: your typing never passes through zMac. Only the volume and brightness keys go through a dedicated tap so they can show on the notch."))
                     Bullet(L("Chạy theo sự kiện (IOKit, CoreAudio, NSWorkspace), không vòng lặp kiểm tra. Riêng clipboard phải kiểm tra định kỳ và tự giãn nhịp khi máy rảnh.",
                              "Event driven (IOKit, CoreAudio, NSWorkspace), no polling loops. Only the clipboard is polled, and it slows down when you're idle."))
                     Bullet(L("Âm lượng từng app chỉ tạo tap âm thanh khi khác 100%.",

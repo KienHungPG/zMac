@@ -25,6 +25,8 @@ zMac: app menu bar macOS gộp AltTab, Rectangle, Maccy, BetterDisplay, AlDente,
 - Chuỗi giao diện song ngữ qua `L("tiếng Việt", "English")`, viết tự nhiên. Comment ngắn bằng tiếng Việt.
 - Module mới: class `@MainActor @Observable` theo `ZModule`, thêm vào `ModuleManager.types`. `stop()` phải gỡ mọi thứ `start()` tạo.
 - Không timer lặp, không poll, không `CGEventTap`. Dùng sự kiện hệ thống. Xem 6 nguyên tắc trong `docs/ARCHITECTURE.md`.
+  Ngoại lệ duy nhất: `MediaKeyTap` (`Modules/MediaKeys.swift`) chỉ nhận NX_SYSDEFINED để thay HUD âm lượng / độ sáng;
+  không mở rộng mask sang phím chữ hay chuột.
 - Hoạt hình chạy mãi (notch thu gọn) phải dùng Core Animation (`CABasicAnimation` / `CAKeyframeAnimation`, xem
   `PlayingBars`, `PetLoopView`), không dùng `symbolEffect(.repeating)` hay `TimelineView`: chúng bắt app vẽ lại mỗi
   khung hình (sóng nhạc symbolEffect đo được 9,4% CPU). Đo bằng `.build/debug/zMac --bench-anim waveform|pet|none GIÂY`.

@@ -21,6 +21,7 @@ enum UIPreview {
         let manager = ModuleManager.shared
         manager.attachForPreview()
         manager.module(ClaudeModule.self)?.previewUsage()
+        manager.module(CalendarModule.self)?.previewSample()
 
         for sel in ["general", "performance"] + manager.types.map({ $0.id }) {
             save("settings-\(sel)", SettingsRoot(selection: sel), CGSize(width: 860, height: 620), to: out)
@@ -54,12 +55,19 @@ enum UIPreview {
             if let claude = manager.module(ClaudeModule.self) {
                 claude.previewRequests()
                 save("notch-claude", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+                claude.previewQuestion()
+                save("notch-claude-question", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+                claude.previewPlan()
+                save("notch-claude-plan", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
                 claude.clearPreview()
             }
+            notch.showLyrics = true
+            notch.lyricsEnabled = false
+            save("notch-lyrics-off", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.lyricsEnabled = true
-            notch.tab = .lyrics
             notch.lyrics.previewSet(.found(.synced(sampleLyrics)), for: sampleTrack)
             save("notch-lyrics", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.showLyrics = false
             notch.tab = .pet
             save("notch-pet", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.tab = .nowPlaying
@@ -71,6 +79,32 @@ enum UIPreview {
             save("notch-live", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.preview(open: false, track: sampleTrack, hud: NotchHUD(symbol: "bolt.fill", text: "82%", color: ZTheme.green.light))
             save("notch-charging", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.preview(open: false, track: sampleTrack,
+                          hud: NotchHUD(symbol: "speaker.wave.2.fill", text: "63%", color: .white, level: 0.625))
+            save("notch-volume", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.preview(open: false, track: sampleTrack,
+                          hud: NotchHUD(symbol: "tv", text: "Chỉnh trên TV", color: .white.opacity(0.85), wide: true))
+            // Đúng notch MacBook Air M4 (209 × 38): số "100%" không được bị cắt.
+            notch.preview(open: false, track: nil, hud: NotchHUD(symbol: "speaker.wave.3.fill", text: "100%", color: .white, level: 1),
+                          notch: CGSize(width: 209, height: 38))
+            save("notch-volume-100", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.wingsBothSides = false
+            notch.preview(open: false, track: nil, hud: NotchHUD(symbol: "speaker.wave.3.fill", text: "100%", color: .white, level: 1),
+                          notch: CGSize(width: 209, height: 38))
+            save("notch-volume-100-left", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.wingsBothSides = true
+            notch.preview(open: false, track: sampleTrack,
+                          hud: NotchHUD(symbol: "tv", text: "Chỉnh trên TV", color: .white.opacity(0.85), wide: true))
+            save("notch-volume-fixed", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.preview(open: false, track: nil, hud: NotchHUD(symbol: "sun.max.fill", text: "81%", color: .white, level: 0.8125))
+            save("notch-brightness", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.wingsBothSides = false
+            notch.preview(open: false, track: nil, hud: NotchHUD(symbol: "sun.max.fill", text: "81%", color: .white, level: 0.8125))
+            save("notch-brightness-left", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.wingsBothSides = true
+            notch.preview(open: false, track: nil, hud: nil, alert: LowBattery.alert(percent: 10, lowPower: false))
+            save("notch-lowbattery", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.preview(open: false, track: nil, hud: nil)
         }
 
         // Bảng các loài thú cưng và tư thế.

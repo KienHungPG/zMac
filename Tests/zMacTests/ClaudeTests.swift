@@ -59,6 +59,58 @@ private let bashRequest = """
     #expect(always.hasSuffix("}\n"))
 }
 
+// MARK: - Câu hỏi (AskUserQuestion) và kế hoạch (ExitPlanMode)
+
+private let questionRequest = """
+{"cwd":"/work/site","tool_name":"AskUserQuestion","tool_input":{"questions":[\
+{"question":"Which framework?","header":"Framework","multiSelect":false,"options":[\
+{"label":"React","description":"Hooks"},{"label":"Vue","description":"SFC"}]},\
+{"question":"Which parts?","header":"Parts","multiSelect":true,"options":[\
+{"label":"Intro","description":""},{"label":"Body"},{"label":"Outro"}]}]}}
+"""
+
+@Test func parsesQuestions() throws {
+    let p = try #require(parse(questionRequest))
+    #expect(p.questions.count == 2)
+    #expect(p.questions[0].question == "Which framework?")
+    #expect(p.questions[0].header == "Framework")
+    #expect(p.questions[0].options.map(\.label) == ["React", "Vue"])
+    #expect(p.questions[0].options[0].detail == "Hooks")
+    #expect(!p.questions[0].multiSelect)
+    #expect(p.questions[1].multiSelect)
+    #expect(p.summary == "Which framework?")
+    #expect(p.input != nil)
+    #expect(!p.isPlan)
+    // Yêu cầu quyền thường không giữ tool_input.
+    #expect(try #require(parse(bashRequest)).input == nil)
+}
+
+@Test func answersJoinMultiSelect() throws {
+    let p = try #require(parse(questionRequest))
+    let a = ClaudeRequest.answers(p.questions, picks: [0: [1], 1: [2, 0]])
+    #expect(a == ["Which framework?": "Vue", "Which parts?": "Intro, Outro"])
+    #expect(ClaudeRequest.answers(p.questions, picks: [1: []]).isEmpty)
+    let reply = String(decoding: ClaudeRequest.reply(.answer(["Which framework?": "Vue"]), suggestions: nil, input: p.input),
+                       as: UTF8.self)
+    #expect(reply.contains("\"behavior\":\"allow\""))
+    #expect(reply.contains("\"updatedInput\""))
+    #expect(reply.contains("\"answers\":{\"Which framework?\":\"Vue\"}"))
+    #expect(reply.contains("\"questions\""))
+}
+
+@Test func planApprovalSendsInputBack() throws {
+    let p = try #require(parse(##"{"tool_name":"ExitPlanMode","tool_input":{"plan":"# Plan\n- Step one","planFilePath":"/tmp/p.md"}}"##))
+    #expect(p.isPlan)
+    #expect(p.summary.hasPrefix("# Plan"))
+    let allow = String(decoding: ClaudeRequest.reply(.allow, suggestions: nil, input: p.input, plan: true), as: UTF8.self)
+    #expect(allow.contains("\"updatedInput\""))
+    #expect(allow.contains("planFilePath"))
+    let deny = String(decoding: ClaudeRequest.reply(.deny, suggestions: nil, input: p.input, plan: true), as: UTF8.self)
+    #expect(deny.contains("keep planning"))
+    #expect(!deny.contains("updatedInput"))
+    #expect(ClaudeRequestCard.plainPlan("## Kế hoạch\n- **Bước** một\n\n* hai") == "Kế hoạch\n• Bước một\n• hai")
+}
+
 // MARK: - settings.json
 
 private let cmd = "/Applications/zMac.app/Contents/MacOS/zmac-claude-hook"
@@ -150,14 +202,21 @@ private func groups(_ s: [String: Any]) -> [[String: Any]] {
 
 // MARK: - Mức dùng (~/.claude.json)
 
-private let claudeConfig = """
-{"numStartups":3,"projects":{"/w":{"x":1}},"cachedUsageUtilization":{"fetchedAtMs":1794892565618,"accountUuid":"u",\
-"utilization":{"five_hour":{"utilization":26,"resets_at":"2026-11-17T09:20:00.486592+00:00","limit_dollars":null},\
-"seven_day":{"utilization":33,"resets_at":"2026-11-22T10:00:00+00:00"},"seven_day_opus":null}}}
-"""
+/// `account`: tài khoản đang đăng nhập (nil = đã đăng xuất). `owner`: tài khoản của số liệu (nil = bản cũ không ghi).
+private func claudeConfig(account: String? = "u", owner: String? = "u") -> String {
+    let login = account.map { #""oauthAccount":{"accountUuid":"\#($0)","displayName":"x"},"# } ?? ""
+    let ownerField = owner.map { #""accountUuid":"\#($0)","# } ?? ""
+    return #"{"numStartups":3,"projects":{"/w":{"x":1}},"# + login
+        + #""cachedUsageUtilization":{"fetchedAtMs":1794892565618,"# + ownerField
+        + #""utilization":{"five_hour":{"utilization":26,"resets_at":"2026-11-17T09:20:00.486592+00:00","limit_dollars":null},"#
+        + #""seven_day":{"utilization":33,"resets_at":"2026-11-22T10:00:00+00:00"},"seven_day_opus":null}}}"#
+}
 
 @Test func readsUsageFromClaudeConfig() throws {
-    let u = try #require(ClaudeUsage.fromClaudeConfig(Array(claudeConfig.utf8)))
+    guard case .usage(let u) = ClaudeUsage.read(Array(claudeConfig().utf8)) else {
+        Issue.record("không đọc được hạn mức")
+        return
+    }
     #expect(u.fiveHour?.percent == 26)
     #expect(abs((u.fiveHour?.resetsAt ?? 0) - 1794907200.486592) < 0.01)
     #expect(u.sevenDay?.percent == 33)
@@ -166,9 +225,21 @@ private let claudeConfig = """
 }
 
 @Test func noUsageWithoutCache() {
-    #expect(ClaudeUsage.fromClaudeConfig(Array(#"{"numStartups":3}"#.utf8)) == nil)
-    #expect(ClaudeUsage.fromClaudeConfig(Array(#"{"cachedUsageUtilization":{"utilization":{"five_hour":null}}}"#.utf8)) == nil)
-    #expect(ClaudeUsage.fromClaudeConfig(Array("not json".utf8)) == nil)
+    #expect(ClaudeUsage.read(Array(#"{"numStartups":3}"#.utf8)) == .noLimits)
+    #expect(ClaudeUsage.read(Array(#"{"cachedUsageUtilization":{"utilization":{"five_hour":null}}}"#.utf8)) == .noLimits)
+    #expect(ClaudeUsage.read(Array("not json".utf8)) == .unreadable)
+    #expect(ClaudeUsage.read(Array(#"{"cachedUsageUtilization":{"utilization":"#.utf8)) == .unreadable)
+}
+
+/// Vừa đổi tài khoản: số trong file vẫn của tài khoản cũ cho tới khi Claude Code lấy số mới.
+@Test func usageOfAnotherAccountIsHidden() {
+    #expect(ClaudeUsage.read(Array(claudeConfig(account: "v").utf8)) == .noLimits)
+    #expect(ClaudeUsage.read(Array(claudeConfig(account: nil).utf8)) == .noLimits)
+    // Bản Claude Code cũ không ghi chủ của số liệu: vẫn đọc.
+    guard case .usage = ClaudeUsage.read(Array(claudeConfig(owner: nil).utf8)) else {
+        Issue.record("cache không có accountUuid phải đọc được")
+        return
+    }
 }
 
 @Test func limitsResetOnTime() throws {

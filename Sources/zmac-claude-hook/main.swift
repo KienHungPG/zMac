@@ -77,6 +77,10 @@ if behavior == "deny" {
 if behavior == "allow", let updated = obj["updatedPermissions"] as? [Any], !updated.isEmpty {
     decision["updatedPermissions"] = updated
 }
+// AskUserQuestion / ExitPlanMode: "allow" phải kèm input đầy đủ (câu hỏi + answers, hoặc kế hoạch).
+if behavior == "allow", let input = obj["updatedInput"] as? [String: Any] {
+    decision["updatedInput"] = input
+}
 let output: [String: Any] = ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": decision]]
 guard let data = try? JSONSerialization.data(withJSONObject: output) else { quietExit() }
 FileHandle.standardOutput.write(data)

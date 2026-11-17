@@ -44,6 +44,7 @@ final class ModuleManager {
         BatteryModule.self,
         AudioModule.self,
         NotchModule.self,
+        CalendarModule.self,
         ClaudeModule.self,
         PetModule.self,
         KeepAwakeModule.self,

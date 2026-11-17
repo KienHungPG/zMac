@@ -9,6 +9,19 @@ import SwiftUI
 // - Hook đóng kết nối (người dùng trả lời trong terminal, Claude Code huỷ) thì thẻ tự biến mất.
 // - Chỉ sửa ~/.claude/settings.json khi người dùng bấm Kết nối; Gỡ chỉ bỏ đúng mục của zMac.
 
+/// Một câu hỏi của công cụ AskUserQuestion (Claude hỏi lại người dùng, kèm 2 đến 4 lựa chọn).
+struct ClaudeQuestion: Equatable {
+    struct Option: Equatable {
+        var label: String
+        var detail: String
+    }
+
+    var question: String
+    var header: String
+    var options: [Option]
+    var multiSelect: Bool
+}
+
 /// Một yêu cầu cấp quyền đang chờ.
 struct ClaudeRequest: Identifiable, Equatable {
     let id = UUID()
@@ -19,8 +32,18 @@ struct ClaudeRequest: Identifiable, Equatable {
     /// Quy tắc "Luôn cho phép" Claude Code gợi ý. nil = không có gợi ý nên không hiện nút đó.
     let alwaysLabel: String?
     let suggestions: Data?
+    /// AskUserQuestion: các câu hỏi (rỗng = yêu cầu quyền thường).
+    var questions: [ClaudeQuestion] = []
+    /// ExitPlanMode: Claude xin bắt đầu làm theo kế hoạch (`summary` là kế hoạch).
+    var isPlan = false
+    /// tool_input gốc. AskUserQuestion và ExitPlanMode phải gửi lại nó trong updatedInput, "allow" suông không đủ.
+    var input: Data?
 
-    enum Decision { case allow, allowAlways, deny, pass }
+    enum Decision: Equatable {
+        case allow, allowAlways, deny, pass
+        /// Trả lời AskUserQuestion: câu hỏi -> nhãn đã chọn (chọn nhiều thì nối bằng ", ").
+        case answer([String: String])
+    }
 
     struct Parsed: Equatable {
         var tool: String
@@ -28,6 +51,9 @@ struct ClaudeRequest: Identifiable, Equatable {
         var project: String
         var alwaysLabel: String?
         var suggestions: Data?
+        var questions: [ClaudeQuestion] = []
+        var isPlan = false
+        var input: Data?
     }
 
     /// Đọc một dòng JSON hook gửi (đúng stdin của Claude Code).
@@ -37,10 +63,39 @@ struct ClaudeRequest: Identifiable, Equatable {
         let input = obj["tool_input"] as? [String: Any] ?? [:]
         let cwd = obj["cwd"] as? String ?? ""
         let sugg = obj["permission_suggestions"] as? [[String: Any]] ?? []
+        let questions = tool == "AskUserQuestion" ? Self.questions(input) : []
+        let isPlan = tool == "ExitPlanMode"
         return Parsed(tool: displayName(tool), summary: summary(tool: tool, input: input),
                       project: cwd.isEmpty ? "" : (cwd as NSString).lastPathComponent,
                       alwaysLabel: alwaysLabel(sugg),
-                      suggestions: sugg.isEmpty ? nil : try? JSONSerialization.data(withJSONObject: sugg))
+                      suggestions: sugg.isEmpty ? nil : try? JSONSerialization.data(withJSONObject: sugg),
+                      questions: questions, isPlan: isPlan,
+                      input: !questions.isEmpty || isPlan ? try? JSONSerialization.data(withJSONObject: input) : nil)
+    }
+
+    static func questions(_ input: [String: Any]) -> [ClaudeQuestion] {
+        guard let list = input["questions"] as? [[String: Any]] else { return [] }
+        return list.compactMap { q in
+            guard let text = q["question"] as? String, !text.isEmpty,
+                  let opts = q["options"] as? [[String: Any]] else { return nil }
+            let options = opts.compactMap { o -> ClaudeQuestion.Option? in
+                guard let label = o["label"] as? String, !label.isEmpty else { return nil }
+                return .init(label: label, detail: o["description"] as? String ?? "")
+            }
+            guard !options.isEmpty else { return nil }
+            return ClaudeQuestion(question: text, header: q["header"] as? String ?? "", options: options,
+                                  multiSelect: q["multiSelect"] as? Bool ?? false)
+        }
+    }
+
+    /// Lựa chọn (chỉ số theo từng câu) -> `answers` cho updatedInput. Câu chưa chọn thì bỏ qua.
+    static func answers(_ questions: [ClaudeQuestion], picks: [Int: Set<Int>]) -> [String: String] {
+        var out: [String: String] = [:]
+        for (i, q) in questions.enumerated() {
+            let labels = (picks[i] ?? []).sorted().compactMap { q.options.indices.contains($0) ? q.options[$0].label : nil }
+            if !labels.isEmpty { out[q.question] = labels.joined(separator: ", ") }
+        }
+        return out
     }
 
     /// mcp__github__create_issue -> "github · create_issue".
@@ -62,6 +117,9 @@ struct ClaudeRequest: Identifiable, Equatable {
         case "WebSearch": text = s("query") ?? ""
         case "Glob", "Grep": text = s("pattern") ?? ""
         case "Task", "Agent": text = s("description") ?? s("prompt") ?? ""
+        case "ExitPlanMode": return String((s("plan") ?? "").prefix(4000))
+        case "AskUserQuestion":
+            text = ((input["questions"] as? [[String: Any]])?.first?["question"] as? String) ?? ""
         default: text = input.keys.sorted().lazy.compactMap { s($0) }.first ?? ""
         }
         return String(text.prefix(600))
@@ -89,16 +147,28 @@ struct ClaudeRequest: Identifiable, Equatable {
     }
 
     /// Dòng trả lời gửi về hook. "none" = không quyết định, Claude Code hỏi trong terminal.
-    static func reply(_ d: Decision, suggestions: Data?) -> [UInt8] {
+    /// `input` (AskUserQuestion, ExitPlanMode) được gửi lại nguyên vẹn trong updatedInput, kèm `answers` nếu có.
+    static func reply(_ d: Decision, suggestions: Data?, input: Data? = nil, plan: Bool = false) -> [UInt8] {
+        let original = input.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         var obj: [String: Any]
         switch d {
-        case .allow: obj = ["behavior": "allow"]
+        case .allow:
+            obj = ["behavior": "allow"]
+            if let original { obj["updatedInput"] = original }
         case .allowAlways:
             obj = ["behavior": "allow"]
+            if let original { obj["updatedInput"] = original }
             if let suggestions, let arr = try? JSONSerialization.jsonObject(with: suggestions) as? [Any] {
                 obj["updatedPermissions"] = arr
             }
-        case .deny: obj = ["behavior": "deny", "message": "The user denied this in zMac."]
+        case .answer(let answers):
+            var updated = original ?? [:]
+            updated["answers"] = answers
+            obj = ["behavior": "allow", "updatedInput": updated]
+        case .deny:
+            obj = ["behavior": "deny",
+                   "message": plan ? "The user wants to keep planning (said in zMac). Ask what to change."
+                                   : "The user denied this in zMac."]
         case .pass: obj = ["behavior": "none"]
         }
         let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data(#"{"behavior":"none"}"#.utf8)
@@ -124,19 +194,34 @@ struct ClaudeUsage: Codable, Equatable {
 
     var hasLimits: Bool { fiveHour != nil || sevenDay != nil }
 
-    static func fromClaudeConfig(_ bytes: [UInt8]) -> ClaudeUsage? { fromClaudeConfig(data: Data(bytes)) }
+    /// Kết quả đọc ~/.claude.json.
+    enum Reading: Equatable {
+        /// Không đọc được (đang ghi dở, hỏng): giữ số đang hiện.
+        case unreadable
+        /// Tài khoản đang đăng nhập không có số: chưa lấy, gói không có hạn mức, đã đăng xuất,
+        /// hoặc vừa đổi tài khoản mà số trong file vẫn của tài khoản cũ. Ẩn đi.
+        case noLimits
+        case usage(ClaudeUsage)
+    }
 
-    static func fromClaudeConfig(data: Data) -> ClaudeUsage? {
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let cache = obj["cachedUsageUtilization"] as? [String: Any],
-              let util = cache["utilization"] as? [String: Any] else { return nil }
+    static func read(_ bytes: [UInt8]) -> Reading { read(data: Data(bytes)) }
+
+    static func read(data: Data) -> Reading {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return .unreadable }
+        guard let cache = obj["cachedUsageUtilization"] as? [String: Any],
+              let util = cache["utilization"] as? [String: Any] else { return .noLimits }
+        // Claude Code chỉ lấy số mới sau một lúc, nên ngay sau khi đổi tài khoản file vẫn giữ số của tài khoản cũ.
+        if let owner = cache["accountUuid"] as? String {
+            guard let current = (obj["oauthAccount"] as? [String: Any])?["accountUuid"] as? String,
+                  current == owner else { return .noLimits }
+        }
         func window(_ key: String) -> Window? {
             guard let w = util[key] as? [String: Any], let p = number(w["utilization"]) else { return nil }
             return Window(percent: min(max(p, 0), 100), resetsAt: time(w["resets_at"]))
         }
         let u = ClaudeUsage(fiveHour: window("five_hour"), sevenDay: window("seven_day"),
                             fetchedAt: number(cache["fetchedAtMs"]).map { $0 / 1000 })
-        return u.hasLimits ? u : nil
+        return u.hasLimits ? .usage(u) : .noLimits
     }
 
     private static func number(_ v: Any?) -> Double? {
@@ -422,7 +507,8 @@ final class ClaudeModule: ZModule {
             return
         }
         let request = ClaudeRequest(fd: fd, tool: p.tool, summary: p.summary, project: p.project,
-                                    alwaysLabel: p.alwaysLabel, suggestions: p.suggestions)
+                                    alwaysLabel: p.alwaysLabel, suggestions: p.suggestions,
+                                    questions: p.questions, isPlan: p.isPlan, input: p.input)
         pending.append(request)
         log.info("claude: yêu cầu \(p.tool, privacy: .public)")
         notifyNotch()
@@ -438,9 +524,17 @@ final class ClaudeModule: ZModule {
         #endif
     }
 
-    private func finish(_ fd: Int32, _ d: ClaudeRequest.Decision, suggestions: Data?) {
-        let bytes = ClaudeRequest.reply(d, suggestions: suggestions)
-        _ = bytes.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+    private func finish(_ fd: Int32, _ d: ClaudeRequest.Decision, suggestions: Data?, input: Data? = nil, plan: Bool = false) {
+        let bytes = ClaudeRequest.reply(d, suggestions: suggestions, input: input, plan: plan)
+        // Câu trả lời có thể dài (kế hoạch gửi lại): ghi chặn cho hết, hook đang chờ đọc ngay.
+        _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
+        bytes.withUnsafeBytes { raw in
+            var off = 0
+            while off < raw.count {
+                let n = write(fd, raw.baseAddress! + off, raw.count - off)
+                if n > 0 { off += n } else if n < 0 && errno == EINTR { continue } else { break }
+            }
+        }
         drop(fd)
     }
 
@@ -507,15 +601,20 @@ final class ClaudeModule: ZModule {
     }
 
     fileprivate func readConfig() {
-        guard let data = FileManager.default.contents(atPath: Self.claudeConfigPath),
-              let fresh = ClaudeUsage.fromClaudeConfig(data: data) else { return }
+        // Không có file (chưa cài / đã gỡ Claude Code) thì cũng không còn số nào đúng.
+        let reading = FileManager.default.contents(atPath: Self.claudeConfigPath).map { ClaudeUsage.read(data: $0) } ?? .noLimits
+        let next: ClaudeUsage?
+        switch reading {
+        case .unreadable: return
+        case .noLimits: next = nil
         // Hạn mức đã qua giờ đặt lại mà Claude Code chưa lấy số mới: coi là 0, không báo lại.
-        let (u, _) = fresh.resetting(now: Date().timeIntervalSince1970)
-        guard u != usage else { return }
-        usage = u
+        case .usage(let fresh): next = fresh.resetting(now: Date().timeIntervalSince1970).usage
+        }
+        guard next != usage else { return }
+        usage = next
         saveUsage()
         #if DEBUG
-        if isSelfTest { print("  mức dùng: 5h \(u.fiveHour?.percent ?? -1)% 7d \(u.sevenDay?.percent ?? -1)%") }
+        if isSelfTest { print("  mức dùng: 5h \(next?.fiveHour?.percent ?? -1)% 7d \(next?.sevenDay?.percent ?? -1)%") }
         #endif
         scheduleReset()
     }
@@ -561,7 +660,7 @@ final class ClaudeModule: ZModule {
 
     func respond(_ request: ClaudeRequest, _ d: ClaudeRequest.Decision) {
         guard pending.contains(where: { $0.id == request.id }) else { return }
-        finish(request.fd, d, suggestions: request.suggestions)
+        finish(request.fd, d, suggestions: request.suggestions, input: request.input, plan: request.isPlan)
     }
 
     /// Notch biến mất hoặc module tắt: trả mọi yêu cầu về terminal.
@@ -662,9 +761,15 @@ final class ClaudeModule: ZModule {
             print("  Claude Code: không có ~/.claude.json")
             return
         }
-        guard let u = ClaudeUsage.fromClaudeConfig(data: data) else {
-            print("  Claude Code: ~/.claude.json chưa có hạn mức")
+        let u: ClaudeUsage
+        switch ClaudeUsage.read(data: data) {
+        case .unreadable:
+            print("  Claude Code: ~/.claude.json không đọc được")
             return
+        case .noLimits:
+            print("  Claude Code: chưa có hạn mức cho tài khoản đang đăng nhập")
+            return
+        case .usage(let v): u = v
         }
         let age = u.fetchedAt.map { Int((Date().timeIntervalSince1970 - $0) / 60) }
         print("  Claude Code: 5h \(u.fiveHour.map(describe) ?? "-"); 7d \(u.sevenDay.map(describe) ?? "-"); "
@@ -771,11 +876,24 @@ struct ClaudeRequestCard: View {
     let count: Int
 
     var body: some View {
+        if request.questions.isEmpty {
+            permission
+        } else {
+            ClaudeQuestionCard(module: module, request: request, count: count)
+        }
+    }
+
+    private var title: String {
+        request.isPlan ? L("Claude muốn bắt đầu làm theo kế hoạch", "Claude is ready to start on its plan")
+                       : L("Claude muốn dùng ", "Claude wants to use ") + request.tool
+    }
+
+    private var permission: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                ZTile(symbol: "sparkle", hue: ZTheme.orange, size: 22)
+                ZTile(symbol: request.isPlan ? "list.bullet.clipboard" : "sparkle", hue: ZTheme.orange, size: 22)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(L("Claude muốn dùng ", "Claude wants to use ") + request.tool)
+                    Text(title)
                         .font(.system(size: 12, weight: .semibold))
                         .lineLimit(1)
                     if !request.project.isEmpty {
@@ -794,48 +912,188 @@ struct ClaudeRequestCard: View {
                         .background(Capsule().fill(.white.opacity(0.12)))
                 }
             }
-            Text(request.summary.isEmpty ? request.tool : request.summary)
-                .font(.system(size: 11, design: .monospaced))
-                .lineLimit(2)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white.opacity(0.08)))
-                .help(request.summary)
+            Group {
+                if request.isPlan {
+                    // Kế hoạch là Markdown nhiều dòng: cuộn được, chữ thường thay vì chữ máy.
+                    ScrollView {
+                        Text(Self.plainPlan(request.summary))
+                            .font(.system(size: 11))
+                            .lineSpacing(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .scrollIndicators(.never)
+                    .frame(maxHeight: 46)
+                } else {
+                    Text(request.summary.isEmpty ? request.tool : request.summary)
+                        .font(.system(size: 11, design: .monospaced))
+                        .lineLimit(2)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.white.opacity(0.08)))
+            .help(request.isPlan ? "" : request.summary)
             HStack(spacing: 6) {
-                Button(L("Hỏi trong terminal", "Ask in terminal")) { module.respond(request, .pass) }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.white.opacity(0.5))
+                Button(request.isPlan ? L("Xem trong terminal", "Review in terminal") : L("Hỏi trong terminal", "Ask in terminal")) {
+                    module.respond(request, .pass)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10.5))
+                .foregroundStyle(.white.opacity(0.5))
                 Spacer()
-                pill(L("Từ chối", "Deny"), fill: Color(hex: 0xFF695D).opacity(0.22), text: Color(hex: 0xFF8A80)) {
+                claudePill(request.isPlan ? L("Lên kế hoạch tiếp", "Keep planning") : L("Từ chối", "Deny"),
+                           fill: Color(hex: 0xFF695D).opacity(0.22), text: Color(hex: 0xFF8A80)) {
                     module.respond(request, .deny)
                 }
                 if let rule = request.alwaysLabel {
-                    pill(L("Luôn cho phép", "Always allow"), fill: .white.opacity(0.14), text: .white) {
+                    let acceptEdits = request.isPlan && rule.contains("acceptEdits")
+                    claudePill(acceptEdits ? L("Đồng ý, tự sửa file", "Yes, auto-accept edits") : L("Luôn cho phép", "Always allow"),
+                               fill: .white.opacity(0.14), text: .white) {
                         module.respond(request, .allowAlways)
                     }
                     .help(rule.isEmpty ? L("Không hỏi lại lệnh này", "Don't ask again for this") : rule)
                 }
-                pill(L("Cho phép", "Allow"), fill: .white, text: .black) {
+                claudePill(request.isPlan ? L("Đồng ý", "Approve") : L("Cho phép", "Allow"), fill: .white, text: .black) {
                     module.respond(request, .allow)
                 }
             }
         }
     }
 
-    private func pill(_ title: String, fill: Color, text: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(Capsule().fill(fill))
-                .foregroundStyle(text)
-                .contentShape(Capsule())
+    /// Bỏ ký hiệu Markdown đầu dòng (#, -, *) cho gọn trong thẻ.
+    static func plainPlan(_ md: String) -> String {
+        md.split(separator: "\n", omittingEmptySubsequences: true).map { line -> String in
+            var t = line.trimmingCharacters(in: .whitespaces)
+            while t.hasPrefix("#") { t.removeFirst() }
+            if t.hasPrefix("- ") || t.hasPrefix("* ") { t = "• " + t.dropFirst(2) }
+            return t.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: .whitespaces)
+        }
+        .joined(separator: "\n")
+    }
+}
+
+func claudePill(_ title: String, fill: Color, text: Color, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(fill))
+            .foregroundStyle(text)
+            .contentShape(Capsule())
+    }
+    .buttonStyle(.plain)
+    .disabled(disabled)
+    .opacity(disabled ? 0.4 : 1)
+}
+
+/// Claude hỏi lại (AskUserQuestion): mỗi lần một câu, bấm lựa chọn để trả lời.
+/// Chọn một: bấm là sang câu sau (câu cuối thì gửi luôn). Chọn nhiều: đánh dấu rồi bấm Tiếp / Gửi.
+/// Muốn gõ câu trả lời khác thì "Trả lời trong terminal" (panel notch không nhận bàn phím).
+struct ClaudeQuestionCard: View {
+    let module: ClaudeModule
+    let request: ClaudeRequest
+    let count: Int
+    @State private var page = 0
+    @State private var picks: [Int: Set<Int>] = [:]
+
+    var body: some View {
+        let qs = request.questions
+        let i = min(page, qs.count - 1)
+        let q = qs[i]
+        let last = i == qs.count - 1
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
+                ZTile(symbol: "questionmark.bubble", hue: ZTheme.orange, size: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(q.question)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text([q.header, request.project].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                if qs.count > 1 { chip("\(i + 1)/\(qs.count)") }
+                if count > 1 { chip(L("còn \(count - 1)", "+\(count - 1) more")) }
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 6) {
+                ForEach(q.options.indices, id: \.self) { k in option(q, page: i, index: k) }
+            }
+            HStack(spacing: 6) {
+                Button(L("Trả lời trong terminal", "Answer in terminal")) { module.respond(request, .pass) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(.white.opacity(0.5))
+                Spacer()
+                if q.multiSelect {
+                    Text(L("Chọn được nhiều", "Pick any")).font(.system(size: 10)).foregroundStyle(.white.opacity(0.45))
+                }
+                if i > 0 {
+                    claudePill(L("Trước", "Back"), fill: .white.opacity(0.14), text: .white) { page = i - 1 }
+                }
+                if q.multiSelect || (picks[i]?.isEmpty == false && !last) || qs.count > 1 {
+                    claudePill(last ? L("Gửi", "Send") : L("Tiếp", "Next"), fill: .white, text: .black,
+                               disabled: picks[i]?.isEmpty ?? true) { advance(from: i) }
+                }
+            }
+        }
+    }
+
+    private func option(_ q: ClaudeQuestion, page i: Int, index k: Int) -> some View {
+        let on = picks[i]?.contains(k) == true
+        let o = q.options[k]
+        return Button {
+            if q.multiSelect {
+                var set = picks[i] ?? []
+                if on { set.remove(k) } else { set.insert(k) }
+                picks[i] = set
+            } else {
+                picks[i] = [k]
+                advance(from: i)
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 5) {
+                    if q.multiSelect {
+                        Image(systemName: on ? "checkmark.square.fill" : "square").font(.system(size: 10.5))
+                    }
+                    Text(o.label).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+                }
+                // Có ô kèm mô tả thì ô nào cũng chừa một dòng, để các ô cao bằng nhau.
+                if q.options.contains(where: { !$0.detail.isEmpty }) {
+                    Text(o.detail.isEmpty ? " " : o.detail).font(.system(size: 9.5)).opacity(0.6).lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(on ? Color.white : Color.white.opacity(0.1)))
+            .foregroundStyle(on ? Color.black : Color.white)
+            .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         }
         .buttonStyle(.plain)
+        .help(o.detail.isEmpty ? o.label : o.detail)
+    }
+
+    private func advance(from i: Int) {
+        if i < request.questions.count - 1 {
+            page = i + 1
+        } else {
+            module.respond(request, .answer(ClaudeRequest.answers(request.questions, picks: picks)))
+        }
+    }
+
+    private func chip(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 10, weight: .semibold))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(.white.opacity(0.12)))
     }
 }
 
@@ -895,6 +1153,25 @@ extension ClaudeModule {
 
     func clearPreview() { pending = [] }
 
+    /// Thẻ câu hỏi (AskUserQuestion) và thẻ kế hoạch (ExitPlanMode).
+    func previewQuestion() {
+        let q = ClaudeQuestion(question: "Trang giới thiệu nên dùng khung nào?", header: "Khung", options: [
+            .init(label: "HTML tĩnh", detail: "Nhẹ nhất, deploy Vercel"), .init(label: "Astro", detail: "Có component"),
+            .init(label: "Next.js", detail: "Nặng hơn"), .init(label: "SvelteKit", detail: ""),
+        ], multiSelect: false)
+        let parts = ClaudeQuestion(question: "Thêm những phần nào?", header: "Phần", options: [
+            .init(label: "Demo", detail: ""), .init(label: "Bảng giá", detail: ""), .init(label: "FAQ", detail: ""),
+        ], multiSelect: true)
+        pending = [ClaudeRequest(fd: -1, tool: "AskUserQuestion", summary: q.question, project: "zmac-website",
+                                 alwaysLabel: nil, suggestions: nil, questions: [q, parts])]
+    }
+
+    func previewPlan() {
+        pending = [ClaudeRequest(fd: -1, tool: "ExitPlanMode",
+                                 summary: "## Kế hoạch\n- **Thêm** thẻ câu hỏi lên notch\n- Gửi answers qua updatedInput\n- Viết test cho hook",
+                                 project: "zMac", alwaysLabel: "mode: acceptEdits", suggestions: nil, isPlan: true)]
+    }
+
     func previewUsage() {
         let now = Date().timeIntervalSince1970
         usage = ClaudeUsage(fiveHour: .init(percent: 81, resetsAt: now + 5400),
@@ -910,6 +1187,11 @@ extension ClaudeModule {
             case "Bash": .allow
             case "Edit": .deny
             case "Write": .allowAlways
+            // Câu hỏi: chọn lựa chọn cuối của mỗi câu. Kế hoạch: đồng ý.
+            case "AskUserQuestion":
+                .answer(ClaudeRequest.answers(r.questions, picks: Dictionary(uniqueKeysWithValues:
+                    r.questions.enumerated().map { ($0.offset, [$0.element.options.count - 1]) })))
+            case "ExitPlanMode": .allow
             default: nil
             }
         }

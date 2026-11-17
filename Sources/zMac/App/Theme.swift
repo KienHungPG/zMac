@@ -36,7 +36,7 @@ enum ZTheme {
 
     static func hue(_ moduleID: String) -> Hue {
         switch moduleID {
-        case "switcher", "audio": blue
+        case "switcher", "audio", "calendar": blue
         case "snap", "display", "claude": orange
         case "clipboard", "keepawake", "pet": purple
         case "notch", "battery": green
