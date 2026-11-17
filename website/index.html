@@ -77,7 +77,7 @@
       <a href="#install" data-en="Install">Cài đặt</a>
       <a href="#privacy" data-en="Privacy">Riêng tư</a>
       <a href="#faq" data-en="FAQ">Hỏi đáp</a>
-      <a href="https://github.com/KienHungPG/zMac">GitHub</a>
+      <a href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener">GitHub</a>
     </nav>
     <button class="theme" id="theme" type="button" aria-label="Chuyển sang giao diện tối"><svg class="i"><use href="#i-moon"/></svg></button>
     <button class="lang" id="lang" type="button" aria-label="Switch to English">EN</button>
@@ -94,7 +94,7 @@
     <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process, in about 20 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình, chỉ khoảng 20 MB RAM. Miễn phí, mã nguồn mở.</p>
     <div class="cta-row">
       <a class="btn btn-lg btn-light" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
-      <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
+      <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
     </div>
     <p class="meta"><span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="size">1,7 MB</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
   </div>
@@ -122,7 +122,7 @@
               <div class="n-charge" aria-hidden="true"><span class="n-bolt"><svg class="i f"><use href="#i-bolt"/></svg><span data-en="Charging">Đang sạc</span></span><b>82%</b></div>
               <div class="n-open">
                 <div class="np">
-                  <span class="tile c-g np-app"><svg class="i"><use href="#i-music"/></svg></span>
+                  <span class="np-art"><span class="np-badge"><svg class="i"><use href="#i-globe"/></svg></span></span>
                   <div class="np-t"><b id="np-title">Quiet Harbor</b><span id="np-artist">Lumen Drift</span></div>
                   <div class="np-ctl">
                     <button type="button" id="np-prev" aria-label="Bài trước" data-en-label="Previous track"><svg class="i f"><use href="#i-prev"/></svg></button>
@@ -345,9 +345,9 @@
       <div class="cap" data-for="notch" hidden>
         <h2>Notch</h2>
         <p class="rep" data-en="Replaces NotchNook">Thay cho NotchNook</p>
-        <p data-en="Hover the notch for what's playing and media controls, plus a shelf to park files. Plug in and the notch shows your battery. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát và điều khiển nhạc, có kệ để tạm file. Cắm sạc là notch báo pin. Mac không có notch thì bật notch giả.</p>
+        <p data-en="Hover the notch for what's playing, with album art, from Music, Spotify or YouTube in your browser, plus media controls and a shelf to park files. Plug in and the notch shows your battery. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát kèm ảnh bìa, từ Music, Spotify hay YouTube trên trình duyệt, điều khiển nhạc, có kệ để tạm file. Cắm sạc là notch báo pin. Mac không có notch thì bật notch giả.</p>
         <div class="ctrl"><button type="button" class="kbtn" id="n-toggle"><span data-en="Open the notch">Mở notch</span></button><button type="button" class="kbtn" id="n-plug"><svg class="i"><use href="#i-bolt"/></svg><span data-en="Plug in">Cắm sạc</span></button></div>
-        <p class="try" data-en="Since macOS 15.4 the notch shows the player's icon instead of album art.">Từ macOS 15.4, notch hiện icon trình phát thay cho ảnh bìa.</p>
+        <p class="try" data-en="Try it: hover the notch, play, pause and skip, then plug in.">Thử: rê chuột vào notch, phát, tạm dừng, chuyển bài, rồi cắm sạc.</p>
       </div>
       <div class="cap" data-for="display" hidden>
         <h2 data-en="Displays">Màn hình</h2>
@@ -405,6 +405,7 @@
         </tbody>
       </table>
       <p class="note" data-en="Not a perfectly even match: AltTab keeps window snapshots, Maccy holds your clipboard history, and zMac's history was empty during the measurement.">Chưa hẳn ngang nhau: AltTab giữ ảnh chụp cửa sổ, Maccy giữ lịch sử clipboard của bạn, còn lịch sử của zMac lúc đo đang trống.</p>
+      <p class="note" data-en="With the Notch module on, zMac also runs a small process of about 6 MB that reads now playing from any player.">Bật module Notch thì zMac chạy thêm một tiến trình nhỏ khoảng 6 MB để đọc bài đang phát từ mọi trình phát.</p>
     </figure>
 
     <div class="why">
@@ -504,7 +505,6 @@
       <div class="card limits">
         <h3 data-en="Not there yet">Chưa làm được</h3>
         <ul>
-          <li data-en="Album art: macOS 15.4+ blocks third-party apps from reading Now Playing, so the notch reads Music and Spotify only and shows the app icon. Play and skip still work with any player.">Ảnh bìa bài hát: macOS 15.4+ chặn app bên thứ ba đọc mục Đang phát, nên notch chỉ đọc được Music và Spotify, hiện icon app thay ảnh bìa. Nút phát, chuyển bài vẫn dùng được với mọi trình phát.</li>
           <li data-en="⌥⇥ only sees windows on the current Space, plus minimized windows and hidden apps.">⌥⇥ chỉ thấy cửa sổ ở Space hiện tại, cộng cửa sổ thu nhỏ và app đang ẩn.</li>
           <li data-en="No virtual displays or HiDPI unlock for 1440p screens yet.">Chưa có màn hình ảo, chưa mở khoá HiDPI cho màn 1440p.</li>
           <li data-en="No master volume for HDMI speakers that lack hardware volume yet.">Chưa chỉnh được âm lượng tổng cho loa HDMI không có âm lượng phần cứng.</li>
@@ -552,15 +552,15 @@
       <p class="eyebrow" data-en="Bugs and ideas">Báo lỗi và góp ý</p>
       <h2 data-en="Hit a bug or missing something?<br>Open an issue.">Gặp lỗi hay thiếu gì?<br>Mở một issue.</h2>
       <p class="sub" data-en="zMac is open source, so every report and idea is discussed in the open on GitHub. You'll need a free GitHub account.">zMac là mã nguồn mở, mọi báo lỗi và góp ý đều trao đổi công khai trên GitHub. Bạn cần một tài khoản GitHub, miễn phí.</p>
-      <a class="fb-all" href="https://github.com/KienHungPG/zMac/issues"><span data-en="See open issues">Xem các issue đang mở</span><svg class="i"><use href="#i-arrow"/></svg></a>
+      <a class="fb-all" href="https://github.com/KienHungPG/zMac/issues" target="_blank" rel="noopener"><span data-en="See open issues">Xem các issue đang mở</span><svg class="i"><use href="#i-arrow"/></svg></a>
     </div>
     <div class="fb-cards">
-      <a class="card fb-card" data-issue="bug" href="https://github.com/KienHungPG/zMac/issues/new?labels=bug">
+      <a class="card fb-card" data-issue="bug" href="https://github.com/KienHungPG/zMac/issues/new?labels=bug" target="_blank" rel="noopener">
         <span class="tile c-o"><svg class="i"><use href="#i-bug"/></svg></span>
         <span class="fb-t"><b data-en="Report a bug">Báo lỗi</b><span data-en="Describe what went wrong and how to make it happen again. The form is already filled in with your zMac version.">Mô tả lỗi và cách làm nó xảy ra lần nữa. Mẫu đã điền sẵn phiên bản zMac.</span></span>
         <svg class="i"><use href="#i-arrow"/></svg>
       </a>
-      <a class="card fb-card" data-issue="idea" href="https://github.com/KienHungPG/zMac/issues/new?labels=enhancement">
+      <a class="card fb-card" data-issue="idea" href="https://github.com/KienHungPG/zMac/issues/new?labels=enhancement" target="_blank" rel="noopener">
         <span class="tile c-p"><svg class="i"><use href="#i-bulb"/></svg></span>
         <span class="fb-t"><b data-en="Suggest a feature">Góp ý tính năng</b><span data-en="Something zMac should do, or another app it should replace.">Muốn zMac làm thêm việc gì, hay thay thêm app nào.</span></span>
         <svg class="i"><use href="#i-arrow"/></svg>
@@ -581,7 +581,7 @@
       <h2 data-en="Clear the menu bar.<br>Lighten the Mac.">Dọn menu bar.<br>Nhẹ cả máy.</h2>
       <a class="btn btn-lg btn-light" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
       <p class="meta"><span data-en="Free · MIT">Miễn phí · MIT</span> · <span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
-      <a class="ghost ghost-i final-src" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code on GitHub">Mã nguồn trên GitHub</span></a>
+      <a class="ghost ghost-i final-src" href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code on GitHub">Mã nguồn trên GitHub</span></a>
     </div>
   </div>
 </section>
@@ -590,9 +590,9 @@
 
 <footer class="foot">
   <div class="wrap foot-in">
-    <p>© 2026 KienHungPG · <a href="https://github.com/KienHungPG/zMac/blob/main/LICENSE" data-en="MIT license">Giấy phép MIT</a></p>
-    <p><a href="https://github.com/KienHungPG/zMac" data-en="Source code">Mã nguồn</a> · <a href="https://github.com/KienHungPG/zMac/issues" data-en="Report a bug">Báo lỗi</a></p>
-    <p data-en="Thanks to yabai and MonitorControl (MIT) for showing the way.">Cảm ơn yabai và MonitorControl (MIT) đã chỉ đường.</p>
+    <p>© 2026 KienHungPG · <a href="https://github.com/KienHungPG/zMac/blob/main/LICENSE" target="_blank" rel="noopener" data-en="MIT license">Giấy phép MIT</a></p>
+    <p><a href="https://github.com/KienHungPG/zMac" target="_blank" rel="noopener" data-en="Source code">Mã nguồn</a> · <a href="https://github.com/KienHungPG/zMac/issues" target="_blank" rel="noopener" data-en="Report a bug">Báo lỗi</a></p>
+    <p data-en="Thanks to yabai and MonitorControl (MIT) for showing the way. Now playing uses mediaremote-adapter (BSD 3-Clause).">Cảm ơn yabai và MonitorControl (MIT) đã chỉ đường. Nhạc đang phát dùng mediaremote-adapter (BSD 3-Clause).</p>
     <p data-en="This page uses no cookies, no tracking and nothing from third parties.">Trang này không cookie, không theo dõi, không tải gì từ bên thứ ba.</p>
   </div>
 </footer>

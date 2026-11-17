@@ -10,7 +10,7 @@ Một app menu bar cho macOS gộp 7 app thành một, viết để nhẹ nhất
 | Màn hình | BetterDisplay | Độ sáng màn ngoài (DDC hoặc làm tối bằng phần mềm), độ phân giải, HiDPI |
 | Pin | AlDente | Giới hạn sạc, sailing, chống nóng, xả về ngưỡng, sạc đầy một lần |
 | Âm thanh | FineTune | Âm lượng và loa riêng từng app, đổi thiết bị vào ra |
-| Notch | NotchNook | Nhạc đang phát, kệ file, báo pin khi cắm sạc |
+| Notch | NotchNook | Nhạc đang phát (mọi trình phát, kể cả trình duyệt, có ảnh bìa), kệ file, báo pin khi cắm sạc |
 | Giữ máy thức | Amphetamine | Không cho máy ngủ trong khoảng thời gian chọn |
 
 ## Nhẹ đến đâu
@@ -22,8 +22,9 @@ Một app menu bar cho macOS gộp 7 app thành một, viết để nhẹ nhất
 | Bộ nhớ (footprint), chỉ có icon menu bar | 16 đến 20 MB |
 | Bộ nhớ khi mở cửa sổ Cài đặt | khoảng 39 MB |
 | CPU khi rảnh | 0,0% (thỉnh thoảng một mẫu 1 đến 2%) |
-| Kích thước app | 2,1 MB (app + daemon) |
+| Kích thước app | 2,3 MB (app + daemon + adapter đọc nhạc) |
 | Liệt kê cửa sổ cho ⌥Tab | 4,4 ms cho 11 cửa sổ từ 9 app |
+| Tiến trình đọc nhạc đang phát (khi bật Notch) | khoảng 6 MB, 0% CPU |
 
 Cùng máy, cùng lúc, các app gốc đang chạy: AltTab 307 MB, Maccy 295 MB, NotchNook 50 MB.
 So sánh này chưa hoàn toàn ngang nhau: AltTab giữ ảnh chụp cửa sổ, Maccy giữ lịch sử của bạn, còn lịch sử của zMac lúc đo đang rỗng.
@@ -36,6 +37,7 @@ Vì sao nhẹ (chi tiết ở [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)):
 - Chạy theo sự kiện (IOKit, CoreAudio, NSWorkspace, distributed notification). Chỉ clipboard phải kiểm tra định kỳ, và nhịp kiểm tra tự giãn khi máy rảnh.
 - Âm lượng từng app chỉ tạo tap âm thanh khi app đó khác 100%.
 - Notch lúc thu gọn chỉ có một tracking area: không theo dõi chuột toàn cục, không timer.
+- Nhạc đang phát do một tiến trình nhỏ riêng đẩy sang khi có thay đổi, chỉ chạy khi bật Notch.
 - Khoá sạc chạy trong daemon root rất nhỏ (`ProcessType=Background`), chỉ thức dậy khi pin đổi.
 - Cửa sổ, popover, bảng huỷ view khi đóng.
 - Build riêng cho chip của máy (arm64), strip ký hiệu.
@@ -84,7 +86,7 @@ sudo rm -f /Library/PrivilegedHelperTools/com.zmac.helper /Library/LaunchDaemons
 
 ## Hạn chế đã biết
 
-- Ảnh bìa bài hát: macOS 15.4+ chặn MediaRemote với app bên thứ ba, nên Notch chỉ đọc được Music và Spotify (qua distributed notification) và hiện icon app thay ảnh bìa. Nút phát, chuyển bài vẫn dùng được với mọi trình phát.
+- Nhạc đang phát: từ macOS 15.4 app bên thứ ba không gọi thẳng MediaRemote được, nên Notch đọc qua mediaremote-adapter (chạy `/usr/bin/perl`). Nếu bản macOS sau chặn cả cách này, Notch lùi về Music và Spotify, không có ảnh bìa.
 - ⌥Tab chỉ thấy cửa sổ ở Space hiện tại, cộng cửa sổ thu nhỏ và app đang ẩn.
 - Màn hình ảo / mở khoá HiDPI cho màn 1440p (như BetterDisplay) chưa có.
 - Âm lượng tổng cho loa HDMI (không có âm lượng phần cứng) chưa có.
@@ -96,6 +98,7 @@ sudo rm -f /Library/PrivilegedHelperTools/com.zmac.helper /Library/LaunchDaemons
 - [HyperMac](https://github.com/mrgoose000000-gif/HyperMac) (GPL-3.0): tham khảo cách dùng các key SMC, không chép code.
 - yabai (MIT): cách đưa đúng một cửa sổ lên trước bằng SkyLight.
 - MonitorControl (MIT): định dạng gói DDC/CI trên Apple Silicon.
+- [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD 3-Clause): dùng nguyên mã để đọc nhạc đang phát, nhúng ở `Vendor/MediaRemoteAdapter`.
 
 ## Giấy phép
 

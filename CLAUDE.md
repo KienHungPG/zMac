@@ -12,6 +12,8 @@ zMac: app menu bar macOS gộp AltTab, Rectangle, Maccy, BetterDisplay, AlDente,
 - Build phải sạch cảnh báo.
 - Trang tải: `website/` (tĩnh, deploy Vercel). `./scripts/make-dmg.sh` đóng gói `website/download/zMac.dmg` + `latest.json`.
   Xem `website/README.md`.
+- `Vendor/MediaRemoteAdapter` (BSD 3-Clause, mã của người khác, không sửa) được `build.sh` build bằng clang để Notch
+  đọc nhạc đang phát. Cập nhật theo `Vendor/MediaRemoteAdapter/VENDORED.md`.
 
 ## Quy tắc
 

@@ -2,8 +2,8 @@
   "version": "0.1.0",
   "build": "1",
   "file": "zMac.dmg",
-  "size": 1723961,
-  "sha256": "e6fa895e0c4e714f12ae7a11b8a30892eb7662f2e1295b6d3577d6fc24ec08dd",
+  "size": 1774169,
+  "sha256": "8e621749c28e116ae34dff1d5182d0a40527bae46a87ad99a7ba7573e843f08c",
   "minimumSystemVersion": "14.0",
   "archs": "arm64",
   "date": "2026-11-17"

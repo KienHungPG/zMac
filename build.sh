@@ -19,14 +19,40 @@ fi
 swift build -c release "${ARCHS[@]}"
 BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)"
 
+# mediaremote-adapter (Vendor/MediaRemoteAdapter, BSD 3-Clause): đọc "Đang phát" từ macOS 15.4.
+# /usr/bin/perl nạp framework này, xem NowPlayingAdapter.swift. Chỉ build lại khi mã nguồn hoặc kiến trúc đổi.
+MRA=Vendor/MediaRemoteAdapter
+MRA_FW=.build/MediaRemoteAdapter.framework
+MRA_BIN="$MRA_FW/Versions/A/MediaRemoteAdapter"
+CLANG_ARCHS=()
+for a in "${ARCHS[@]}"; do [ "$a" = --arch ] || CLANG_ARCHS+=(-arch "$a"); done
+WANT_ARCHS="$(printf '%s\n' "${CLANG_ARCHS[@]}" | grep -v '^-arch$' | sort | tr '\n' ' ')"
+HAVE_ARCHS="$( { lipo -archs "$MRA_BIN" 2>/dev/null || true; } | tr ' ' '\n' | { grep . || true; } | sort | tr '\n' ' ')"
+if [ ! -f "$MRA_BIN" ] || [ "$WANT_ARCHS" != "$HAVE_ARCHS" ] || [ -n "$(find "$MRA" -newer "$MRA_BIN" -type f | head -1)" ]; then
+    rm -rf "$MRA_FW"
+    mkdir -p "$MRA_FW/Versions/A/Resources"
+    clang -fobjc-arc -fvisibility=default -dynamiclib -Os "${CLANG_ARCHS[@]}" -mmacosx-version-min=14.0 \
+        -I"$MRA/include" -I"$MRA/src" "$MRA"/src/adapter/*.m "$MRA"/src/private/*.m "$MRA"/src/utility/*.m \
+        -framework Foundation -framework AppKit -framework UniformTypeIdentifiers \
+        -install_name @rpath/MediaRemoteAdapter.framework/Versions/A/MediaRemoteAdapter -o "$MRA_BIN"
+    strip -x "$MRA_BIN"
+    cp "$MRA/Info.plist" "$MRA_FW/Versions/A/Resources/Info.plist"
+    ln -s A "$MRA_FW/Versions/Current"
+    ln -s Versions/Current/MediaRemoteAdapter "$MRA_FW/MediaRemoteAdapter"
+    ln -s Versions/Current/Resources "$MRA_FW/Resources"
+fi
+
 APP=build/zMac.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/zMac" "$APP/Contents/MacOS/zMac"
 cp "$BIN/zmac-helper" "$APP/Contents/MacOS/zmac-helper"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/helper-install.sh "$APP/Contents/Resources/"
 if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns "$APP/Contents/Resources/"; fi
+cp -R "$MRA_FW" "$APP/Contents/Frameworks/"
+cp "$MRA/bin/mediaremote-adapter.pl" "$APP/Contents/Resources/"
+cp "$MRA/LICENSE" "$APP/Contents/Resources/MediaRemoteAdapter-LICENSE.txt"
 # Bỏ ký hiệu cục bộ: binary nhỏ hơn, nạp nhanh hơn.
 strip -x "$APP/Contents/MacOS/zMac" "$APP/Contents/MacOS/zmac-helper"
 
@@ -38,6 +64,7 @@ else
     SIGN="-"
     echo "⚠️  Chưa có chứng chỉ \"$IDENTITY\", ký ad-hoc. Chạy scripts/make-signing-cert.sh một lần để giữ quyền qua các lần build."
 fi
+codesign --force --sign "$SIGN" "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
 codesign --force --sign "$SIGN" --identifier com.zmac.helper "$APP/Contents/MacOS/zmac-helper"
 codesign --force --sign "$SIGN" "$APP"
 echo "→ $APP (ký: $SIGN, $(du -sh "$APP" | cut -f1 | tr -d ' '))"

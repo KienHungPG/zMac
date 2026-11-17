@@ -319,12 +319,12 @@ final class NotchModule: ZModule {
     }
 
     func playPause() {
-        MediaKeys.send(MediaKeys.play)
+        nowPlaying.send(.playPause)
         nowPlaying.togglePlayingOptimistic()
     }
 
-    func nextTrack() { MediaKeys.send(MediaKeys.next) }
-    func previousTrack() { MediaKeys.send(MediaKeys.previous) }
+    func nextTrack() { nowPlaying.send(.next) }
+    func previousTrack() { nowPlaying.send(.previous) }
 
     func openPlayer() {
         guard let id = track?.bundleID, !id.isEmpty,

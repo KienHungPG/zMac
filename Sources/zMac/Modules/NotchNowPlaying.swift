@@ -2,9 +2,10 @@ import AppKit
 import Foundation
 
 // Nhạc đang phát cho notch, hoàn toàn theo sự kiện:
-// - Apple Music và Spotify phát distributed notification mỗi khi đổi bài / phát / dừng.
-// - MediaRemote (API riêng) chỉ thử thêm để lấy ảnh bìa; từ macOS 15.4 app ngoài Apple thường không đọc được.
-// - Điều khiển bằng phím media giả lập: hệ thống tự gửi tới trình phát đang "Now Playing".
+// - Chính: mediaremote-adapter (NowPlayingAdapter.swift) đọc mọi trình phát, kể cả trình duyệt, có ảnh bìa.
+// - Đường lùi khi adapter không chạy được: Apple Music và Spotify phát distributed notification mỗi khi
+//   đổi bài / phát / dừng; MediaRemote gọi thẳng chỉ còn đọc được trước macOS 15.4.
+// - Điều khiển: gửi lệnh qua adapter; không có adapter thì giả lập phím media.
 
 struct NowPlayingTrack: Equatable {
     var bundleID: String
@@ -17,7 +18,7 @@ struct NowPlayingTrack: Equatable {
     /// Giây, tại thời điểm `updatedAt`. Chỉ Spotify gửi kèm.
     var position: Double?
     var updatedAt: Date
-    /// Chỉ có khi MediaRemote trả về.
+    /// Có khi adapter (hoặc MediaRemote trước macOS 15.4) trả về.
     var artwork: NSImage?
 
     func elapsed(at date: Date) -> Double? {
@@ -33,6 +34,7 @@ final class NowPlayingMonitor: NSObject {
     private(set) var track: NowPlayingTrack?
     private var mediaRemoteObserver: NSObjectProtocol?
     private var running = false
+    private let adapter = NowPlayingAdapter()
 
     static let sources: [(notification: String, bundleID: String)] = [
         ("com.apple.Music.playerInfo", "com.apple.Music"),
@@ -42,13 +44,21 @@ final class NowPlayingMonitor: NSObject {
     func start() {
         guard !running else { return }
         running = true
+        // Đường lùi luôn đăng ký (rẻ: chỉ thức khi Music / Spotify đổi trạng thái); bỏ qua khi adapter đang chạy.
         let center = DistributedNotificationCenter.default()
         for s in Self.sources {
             // deliverImmediately: app nền (accessory) vẫn nhận ngay, không bị gom lại.
             center.addObserver(self, selector: #selector(received(_:)), name: Notification.Name(s.notification),
                                object: nil, suspensionBehavior: .deliverImmediately)
         }
-        guard MediaRemote.getInfo != nil else { return }
+        adapter.onUpdate = { [weak self] t in self?.set(t) }
+        adapter.onExit = { [weak self] in self?.adapterFailed() }
+        if adapter.start() { return }
+        startMediaRemote()
+    }
+
+    private func startMediaRemote() {
+        guard running, mediaRemoteObserver == nil, MediaRemote.getInfo != nil else { return }
         // macOS 15.4+ chặn app ngoài Apple đọc MediaRemote: đăng ký nhận thông báo chỉ tốn lần đánh thức.
         // Khi đó chỉ thử đọc một lần mỗi khi đổi bài (lấy ảnh bìa nếu may mắn).
         if MediaRemote.readable, let register = MediaRemote.register {
@@ -62,9 +72,30 @@ final class NowPlayingMonitor: NSObject {
         fetchMediaRemote()
     }
 
+    /// Adapter thoát ngoài ý muốn (Apple chặn cách này, perl lỗi…): notch vẫn chạy bằng Music / Spotify.
+    private func adapterFailed() {
+        guard running else { return }
+        set(nil)
+        startMediaRemote()
+    }
+
+    enum Control { case playPause, next, previous }
+
+    /// Gửi qua adapter để tới đúng trình phát (kể cả trình duyệt); không có adapter thì giả lập phím media.
+    func send(_ control: Control) {
+        switch control {
+        case .playPause: if !adapter.send(.togglePlayPause) { MediaKeys.send(MediaKeys.play) }
+        case .next: if !adapter.send(.next) { MediaKeys.send(MediaKeys.next) }
+        case .previous: if !adapter.send(.previous) { MediaKeys.send(MediaKeys.previous) }
+        }
+    }
+
     func stop() {
         guard running else { return }
         running = false
+        adapter.stop()
+        adapter.onUpdate = nil
+        adapter.onExit = nil
         DistributedNotificationCenter.default().removeObserver(self)
         if let mediaRemoteObserver {
             NotificationCenter.default.removeObserver(mediaRemoteObserver)
@@ -91,6 +122,8 @@ final class NowPlayingMonitor: NSObject {
     }
 
     private func handle(name: String, info: [AnyHashable: Any]) {
+        // Adapter đã đọc cả Music và Spotify, kèm ảnh bìa.
+        guard !adapter.live else { return }
         guard let bundle = Self.sources.first(where: { $0.notification == name })?.bundleID else { return }
         let state = info["Player State"] as? String ?? ""
         let title = info["Name"] as? String ?? ""

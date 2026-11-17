@@ -405,8 +405,14 @@ kbd {
 }
 .notch.open .n-open { visibility: visible; opacity: 1; transition: opacity .25s .22s, visibility 0s; }
 .np { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .5em .8em; align-items: center; align-content: center; }
-.np-app { width: 3em; height: 3em; border-radius: .8em; }
-.np-app .i { width: 1.6em; height: 1.6em; }
+/* Ảnh bìa minh hoạ, kèm huy hiệu trình phát (ở đây là trình duyệt) */
+.np-art {
+  position: relative; width: 3.2em; height: 3.2em; border-radius: .7em;
+  background: radial-gradient(circle at 28% 30%, rgba(255, 214, 160, .9), transparent 45%), linear-gradient(140deg, #e0784f, #8a3f7e 55%, #2b2f6b);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+.np-badge { position: absolute; right: -.35em; bottom: -.35em; display: grid; place-items: center; width: 1.4em; height: 1.4em; border-radius: .42em; background: linear-gradient(135deg, var(--b1), var(--b3)); box-shadow: 0 0 0 .16em #000; }
+.np-badge .i { width: .9em; height: .9em; stroke-width: 2.2; }
 .np-t { min-width: 0; }
 .np-t b, .np-t span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .np-t span { font-size: .82em; color: rgba(255, 255, 255, .6); }

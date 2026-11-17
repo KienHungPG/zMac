@@ -126,8 +126,9 @@ enum Diagnostics {
         line(String(format: "  tiến trình: %.1f MB, %d luồng", s.footprintMB, s.threads))
     }
 
-    /// Module đăng ký thêm thông tin chẩn đoán ở đây (pin, màn hình, âm thanh).
+    /// Module đăng ký thêm thông tin chẩn đoán ở đây (pin, màn hình, âm thanh, nhạc đang phát).
     static var diagnosticHooks: [@MainActor () -> Void] {
-        [SwitcherModule.diagnose, DisplayModule.diagnose, BatteryModule.diagnose, AudioModule.diagnose]
+        [SwitcherModule.diagnose, DisplayModule.diagnose, BatteryModule.diagnose, AudioModule.diagnose,
+         NowPlayingAdapter.diagnose]
     }
 }
