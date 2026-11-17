@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "build": "1",
+  "file": "zMac.dmg",
+  "size": 1723961,
+  "sha256": "e6fa895e0c4e714f12ae7a11b8a30892eb7662f2e1295b6d3577d6fc24ec08dd",
+  "minimumSystemVersion": "14.0",
+  "archs": "arm64",
+  "date": "2026-11-17"
+}

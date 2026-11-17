@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'">
+<title data-en="zMac: one light menu bar app for your Mac">zMac: một app menu bar nhẹ cho Mac</title>
+<meta name="description" content="zMac gộp chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app và notch vào một app menu bar khoảng 20 MB RAM. Miễn phí, mã nguồn mở." data-en-content="zMac puts window switching, window snapping, clipboard history, display brightness, charge limiting, per-app volume and the notch into one menu bar app that uses about 20 MB of memory. Free and open source.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1b1d3d">
+<meta property="og:type" content="website">
+<meta property="og:title" content="zMac">
+<meta property="og:description" content="Cả dãy app menu bar, gộp vào một. Khoảng 20 MB RAM." data-en-content="A whole row of menu bar apps, folded into one. About 20 MB of memory.">
+<link rel="icon" href="assets/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<script src="main.js" defer></script>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-switch" viewBox="0 0 24 24"><rect x="3" y="8" width="13" height="11" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3"/></symbol>
+  <symbol id="i-snap" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16M12 12h9"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="M9 4.5H8a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-1"/><rect x="9" y="3" width="6" height="3.5" rx="1"/><path d="M9.5 11h5M9.5 15h5"/></symbol>
+  <symbol id="i-notch" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="15" rx="2.5"/><path d="M9 4v1.5A1.5 1.5 0 0 0 10.5 7h3A1.5 1.5 0 0 0 15 5.5V4"/></symbol>
+  <symbol id="i-display" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2.5" y="7.5" width="17" height="9" rx="2.5"/><path d="M21.5 10.5v3M6 10.5h7v3H6z"/></symbol>
+  <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13L7 14.5H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5V6M12 3.5V6"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 15.8a5 5 0 0 1 6.8 0M12 19h.01"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9 10h.01M12 10h.01M15 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 4.5l-3 15"/></symbol>
+</svg>
+
+<a class="skip" href="#main" data-en="Skip to content">Bỏ qua đến nội dung</a>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="28" height="28"><span>zMac</span></a>
+    <nav class="links" aria-label="Mục lục" data-en-label="Sections">
+      <a href="#modules" data-en="Features">Tính năng</a>
+      <a href="#light" data-en="Lightweight">Nhẹ</a>
+      <a href="#install" data-en="Install">Cài đặt</a>
+      <a href="#privacy" data-en="Privacy">Riêng tư</a>
+      <a href="#faq" data-en="FAQ">Hỏi đáp</a>
+      <a href="https://github.com/KienHungPG/zMac">GitHub</a>
+    </nav>
+    <button class="lang" id="lang" type="button" aria-label="Switch to English">EN</button>
+    <a class="btn btn-sm" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download">Tải về</span></a>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div class="stage">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="ztiles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span data-en="Menu bar app for macOS">App menu bar cho macOS</span></p>
+        <h1 data-en="A whole row of menu bar apps,<br>folded into one.">Cả dãy app menu bar,<br>gộp vào một.</h1>
+        <p class="lede" data-en="zMac does the jobs of AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook and Amphetamine in a single process. All 8 modules on, Mac idle: about 20 MB of memory. Free and open source.">zMac làm việc của AltTab, Rectangle, Maccy, BetterDisplay, AlDente, FineTune, NotchNook và Amphetamine trong một tiến trình. Bật đủ 8 module, máy rảnh: khoảng 20 MB RAM. Miễn phí, mã nguồn mở.</p>
+        <div class="cta-row">
+          <a class="btn btn-lg" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
+          <a class="ghost" href="#install" data-en="How to install">Cách cài</a>
+          <a class="ghost ghost-i" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code">Mã nguồn</span></a>
+        </div>
+        <p class="meta"><span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="size">2,1 MB</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
+      </div>
+
+      <div class="mock" aria-hidden="true">
+        <div class="menubar">
+          <span class="mb-ghost"><i></i><i></i><i></i></span>
+          <span class="mb-old">
+            <svg class="i"><use href="#i-switch"/></svg><svg class="i"><use href="#i-snap"/></svg><svg class="i"><use href="#i-clip"/></svg><svg class="i"><use href="#i-display"/></svg><svg class="i"><use href="#i-battery"/></svg><svg class="i"><use href="#i-sound"/></svg><svg class="i"><use href="#i-notch"/></svg><svg class="i"><use href="#i-cup"/></svg>
+          </span>
+          <span class="mb-z"><span class="ztiles"><i></i><i></i><i></i><i></i></span></span>
+          <svg class="i"><use href="#i-wifi"/></svg>
+          <svg class="i"><use href="#i-battery"/></svg>
+          <span class="mb-clock">08:30</span>
+        </div>
+        <div class="pop">
+          <div class="pop-h"><b>zMac</b><span>18 MB</span></div>
+          <div class="pop-row">
+            <span class="tile c-o"><svg class="i"><use href="#i-sun"/></svg></span>
+            <div class="grow"><div class="pop-l"><span>LG TV</span><em>60%</em></div><div class="slider"><b class="w60"></b></div></div>
+          </div>
+          <div class="pop-row">
+            <span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span>
+            <div class="grow"><div class="pop-l"><span data-en="Battery 82%">Pin 82%</span><em data-en="stops at 80%">dừng ở 80%</em></div><div class="slider"><b class="w80"></b></div></div>
+          </div>
+          <div class="pop-row">
+            <span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span>
+            <div class="grow"><div class="pop-l"><span>Spotify</span><em>70%</em></div><div class="slider"><b class="w70"></b></div></div>
+          </div>
+          <div class="pop-row">
+            <span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span>
+            <div class="grow pop-l"><span data-en="Keep awake">Giữ máy thức</span><em data-en="54 min left">còn 54 phút</em></div>
+            <span class="toggle"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="modules" class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" data-en="8 modules, 1 process">8 module, 1 tiến trình</p>
+      <h2 data-en="Everything you kept<br>in the menu bar.">Những thứ bạn vẫn<br>để trên menu bar.</h2>
+      <p class="sub" data-en="Turn off what you don't need. A module that's off is never created, so it costs no memory. Modules that don't fit your Mac, like charge limiting on a desktop, hide themselves.">Không cần thì tắt. Module tắt không được tạo ra nên không tốn RAM. Module không hợp máy, như giới hạn sạc trên Mac để bàn, tự ẩn đi.</p>
+    </div>
+    <div class="grid">
+      <article class="card">
+        <span class="tile c-b"><svg class="i"><use href="#i-switch"/></svg></span>
+        <h3 data-en="Window switcher">Chuyển cửa sổ</h3>
+        <p class="rep" data-en="Replaces AltTab">Thay cho AltTab</p>
+        <p data-en="Hold ⌥ and press ⇥ to go through every window, minimized ones and hidden apps included. ⌥` shows only the current app's windows. It can take over ⌘⇥ too.">Giữ ⌥ rồi bấm ⇥ để lướt qua từng cửa sổ, kể cả cửa sổ thu nhỏ và app đang ẩn. ⌥` chỉ hiện cửa sổ của app đang dùng. Muốn thì thay luôn ⌘⇥.</p>
+        <div class="keys"><kbd>⌥</kbd><kbd>⇥</kbd></div>
+      </article>
+      <article class="card">
+        <span class="tile c-o"><svg class="i"><use href="#i-snap"/></svg></span>
+        <h3 data-en="Window snapping">Chia cửa sổ</h3>
+        <p class="rep" data-en="Replaces Rectangle">Thay cho Rectangle</p>
+        <p data-en="⌃⌥ plus an arrow for halves, U I J K for corners, D F G for thirds, ↩ to maximize. Dragging a window to a screen edge works too.">⌃⌥ cộng mũi tên cho nửa màn hình, U I J K cho bốn góc, D F G cho từng phần ba, ↩ để phóng to. Kéo cửa sổ ra mép màn hình cũng được.</p>
+        <div class="keys"><kbd>⌃</kbd><kbd>⌥</kbd><kbd>←</kbd></div>
+      </article>
+      <article class="card">
+        <span class="tile c-p"><svg class="i"><use href="#i-clip"/></svg></span>
+        <h3 data-en="Clipboard history">Lịch sử clipboard</h3>
+        <p class="rep" data-en="Replaces Maccy">Thay cho Maccy</p>
+        <p data-en="⌘⇧C brings back what you copied. Search, pin and paste without leaving the keyboard. Passwords copied from 1Password, Bitwarden or Keychain are never saved.">⌘⇧C mở lại những gì bạn đã chép. Tìm, ghim, dán lại mà không rời bàn phím. Mật khẩu chép từ 1Password, Bitwarden hay Keychain không bị lưu.</p>
+        <div class="keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>C</kbd></div>
+      </article>
+      <article class="card">
+        <span class="tile c-g"><svg class="i"><use href="#i-notch"/></svg></span>
+        <h3 data-en="Notch">Notch</h3>
+        <p class="rep" data-en="Replaces NotchNook">Thay cho NotchNook</p>
+        <p data-en="Hover the notch for what's playing and media controls, a shelf to park files, and battery status when you plug in. No notch? Turn on a virtual one.">Rê chuột vào notch để xem bài đang phát và điều khiển nhạc, có kệ để tạm file, báo pin khi cắm sạc. Mac không có notch thì bật notch giả.</p>
+      </article>
+      <article class="card">
+        <span class="tile c-o"><svg class="i"><use href="#i-display"/></svg></span>
+        <h3 data-en="Displays">Màn hình</h3>
+        <p class="rep" data-en="Replaces BetterDisplay">Thay cho BetterDisplay</p>
+        <p data-en="Set external display brightness over DDC. Screens and TVs without DDC get dimmed in software. Switch resolutions and HiDPI modes.">Chỉnh độ sáng màn hình ngoài qua DDC. Màn hình hay TV không hỗ trợ DDC thì làm tối bằng phần mềm. Đổi độ phân giải, chọn chế độ HiDPI.</p>
+      </article>
+      <article class="card">
+        <span class="tile c-g"><svg class="i"><use href="#i-battery"/></svg></span>
+        <h3 data-en="Battery">Pin</h3>
+        <p class="rep" data-en="Replaces AlDente">Thay cho AlDente</p>
+        <p data-en="Stop charging at a level you pick, like 80%, so the battery lasts longer. Sailing, a pause when the battery runs hot, discharge to the limit while plugged in, and a one-off full charge before a trip.">Dừng sạc ở mức bạn chọn, ví dụ 80%, để pin bền hơn. Có sailing, tạm dừng khi pin nóng, xả về ngưỡng khi đang cắm điện, và sạc đầy một lần trước chuyến đi.</p>
+      </article>
+      <article class="card">
+        <span class="tile c-b"><svg class="i"><use href="#i-sound"/></svg></span>
+        <h3 data-en="Sound">Âm thanh</h3>
+        <p class="rep" data-en="Replaces FineTune">Thay cho FineTune</p>
+        <p data-en="A volume level and an output device for each app, plus quick switching of inputs and outputs. Needs macOS 14.2 or later.">Mỗi app một mức âm lượng, một loa riêng. Đổi nhanh thiết bị vào ra. Cần macOS 14.2 trở lên.</p>
+      </article>
+      <article class="card">
+        <span class="tile c-p"><svg class="i"><use href="#i-cup"/></svg></span>
+        <h3 data-en="Keep awake">Giữ máy thức</h3>
+        <p class="rep" data-en="Replaces Amphetamine">Thay cho Amphetamine</p>
+        <p data-en="Keep your Mac from sleeping for 15 minutes, 1, 2 or 5 hours, or until you turn it off.">Không cho máy ngủ trong 15 phút, 1, 2 hay 5 giờ, hoặc đến khi bạn tắt.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="snap" class="sec">
+  <div class="wrap snap">
+    <div class="snap-copy">
+      <p class="eyebrow" data-en="Try it">Thử ngay</p>
+      <h2 data-en="Arrange windows<br>without the mouse.">Xếp cửa sổ<br>không cần chuột.</h2>
+      <p class="sub" data-en="Press a key below to see where the window lands. On your Mac, hold ⌃⌥ and press the same key.">Bấm một phím bên dưới để xem cửa sổ nhảy về đâu. Trên Mac, giữ ⌃⌥ rồi bấm đúng phím đó.</p>
+      <p class="snap-now" aria-live="polite"><kbd>⌃</kbd><kbd>⌥</kbd><kbd id="snap-key">↩</kbd><span id="snap-name">Phóng to</span></p>
+    </div>
+    <div class="snap-demo" id="snap-demo">
+      <div class="screen" aria-hidden="true">
+        <div class="win" id="snap-win"><div class="win-bar"><i></i><i></i><i></i></div><div class="win-body"><b></b><b></b><b></b></div></div>
+      </div>
+      <div class="keygroups">
+        <div class="kg"><span class="kg-l" data-en="Halves">Nửa</span><div class="kg-k">
+          <button class="key" type="button" data-snap="left" aria-label="Nửa trái" data-en-label="Left half">←</button>
+          <button class="key" type="button" data-snap="right" aria-label="Nửa phải" data-en-label="Right half">→</button>
+          <button class="key" type="button" data-snap="top" aria-label="Nửa trên" data-en-label="Top half">↑</button>
+          <button class="key" type="button" data-snap="bottom" aria-label="Nửa dưới" data-en-label="Bottom half">↓</button>
+        </div></div>
+        <div class="kg"><span class="kg-l" data-en="Corners">Góc</span><div class="kg-k">
+          <button class="key" type="button" data-snap="tl" aria-label="Góc trên trái" data-en-label="Top left">U</button>
+          <button class="key" type="button" data-snap="tr" aria-label="Góc trên phải" data-en-label="Top right">I</button>
+          <button class="key" type="button" data-snap="bl" aria-label="Góc dưới trái" data-en-label="Bottom left">J</button>
+          <button class="key" type="button" data-snap="br" aria-label="Góc dưới phải" data-en-label="Bottom right">K</button>
+        </div></div>
+        <div class="kg"><span class="kg-l" data-en="Thirds">Phần ba</span><div class="kg-k">
+          <button class="key" type="button" data-snap="t1" aria-label="Phần ba đầu" data-en-label="First third">D</button>
+          <button class="key" type="button" data-snap="t2" aria-label="Phần ba giữa" data-en-label="Center third">F</button>
+          <button class="key" type="button" data-snap="t3" aria-label="Phần ba cuối" data-en-label="Last third">G</button>
+          <button class="key" type="button" data-snap="tt1" aria-label="Hai phần ba đầu" data-en-label="First two thirds">E</button>
+          <button class="key" type="button" data-snap="tt2" aria-label="Hai phần ba cuối" data-en-label="Last two thirds">T</button>
+        </div></div>
+        <div class="kg"><span class="kg-l" data-en="Whole">Cả màn</span><div class="kg-k">
+          <button class="key key-w" type="button" data-snap="max" aria-label="Phóng to" data-en-label="Maximize">↩</button>
+          <button class="key" type="button" data-snap="center" aria-label="Căn giữa" data-en-label="Center">C</button>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="light" class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" data-en="How light">Nhẹ đến đâu</p>
+      <h2 data-en="All 8 modules on.<br>Still about 20 MB.">Bật đủ 8 module.<br>Vẫn khoảng 20 MB.</h2>
+      <p class="sub" data-en="Measured on a MacBook Air M4 running macOS 26.5, while idle.">Đo trên MacBook Air M4, macOS 26.5, lúc máy đang rảnh.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><b data-en="16–20 MB">16–20 MB</b><span data-en="memory with just the menu bar icon">bộ nhớ khi chỉ có icon menu bar</span></div>
+      <div class="stat"><b data-en="0.0%">0,0%</b><span data-en="CPU when idle, with the odd 1–2% sample">CPU khi rảnh, thỉnh thoảng nhích 1–2%</span></div>
+      <div class="stat"><b data-en="2.1 MB">2,1 MB</b><span data-en="app size, battery daemon included">kích thước app, gồm cả daemon pin</span></div>
+      <div class="stat"><b data-en="4.4 ms">4,4 ms</b><span data-en="to list 11 windows from 9 apps for ⌥⇥">để liệt kê 11 cửa sổ từ 9 app cho ⌥⇥</span></div>
+    </div>
+
+    <figure class="card chart">
+      <figcaption>
+        <h3 data-en="Memory in use, measured at the same time on the same Mac">Bộ nhớ đang dùng, đo cùng lúc trên cùng máy</h3>
+      </figcaption>
+      <table class="bars">
+        <thead class="sr-only"><tr><th scope="col">App</th><th scope="col" data-en="Memory">Bộ nhớ</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">AltTab</th><td><div class="track"><span class="bar v-alttab"></span><span class="val">307 MB</span></div></td></tr>
+          <tr><th scope="row">Maccy</th><td><div class="track"><span class="bar v-maccy"></span><span class="val">295 MB</span></div></td></tr>
+          <tr><th scope="row">NotchNook</th><td><div class="track"><span class="bar v-notchnook"></span><span class="val">50 MB</span></div></td></tr>
+          <tr class="me"><th scope="row">zMac <small data-en="all 8 modules">cả 8 module</small></th><td><div class="track"><span class="bar v-zmac"></span><span class="val" data-en="about 20 MB">khoảng 20 MB</span></div></td></tr>
+        </tbody>
+      </table>
+      <p class="note" data-en="Not a perfectly even match: AltTab keeps window snapshots, Maccy holds your clipboard history, and zMac's history was empty during the measurement.">Chưa hẳn ngang nhau: AltTab giữ ảnh chụp cửa sổ, Maccy giữ lịch sử clipboard của bạn, còn lịch sử của zMac lúc đo đang trống.</p>
+    </figure>
+
+    <div class="why">
+      <div><h3 data-en="One process instead of eight">Một tiến trình thay cho tám</h3><p data-en="Every module shares one loaded copy of Swift, AppKit and SwiftUI.">Mọi module dùng chung một bản Swift, AppKit, SwiftUI đã nạp sẵn.</p></div>
+      <div><h3 data-en="Off means gone">Tắt là không tồn tại</h3><p data-en="A module you turn off isn't created and registers nothing.">Module bạn tắt không được tạo ra, không đăng ký gì với hệ thống.</p></div>
+      <div><h3 data-en="Event driven">Chạy theo sự kiện</h3><p data-en="No repeating timers. Battery, sound and displays tell zMac when something changes. Only the clipboard has to be checked, and the check slows down when you're idle.">Không timer lặp. Pin, âm thanh, màn hình tự báo khi có thay đổi. Riêng clipboard phải kiểm tra định kỳ, và nhịp kiểm tra tự giãn khi máy rảnh.</p></div>
+      <div><h3 data-en="Out of your typing">Không chen vào bàn phím</h3><p data-en="Shortcuts are registered with the system, with no event tap, so your keystrokes never pass through zMac.">Phím tắt đăng ký thẳng với hệ thống, không chặn bàn phím, nên những gì bạn gõ không đi qua zMac.</p></div>
+      <div><h3 data-en="Closed means freed">Đóng là giải phóng</h3><p data-en="Settings, the menu bar popover and the clipboard panel tear down their views when they close.">Cửa sổ Cài đặt, popover menu bar, bảng clipboard huỷ giao diện ngay khi đóng.</p></div>
+      <div><h3 data-en="Heavy work only on demand">Chỉ làm nặng khi cần</h3><p data-en="Per-app volume only taps an app's audio when it isn't at 100%. ⌥⇥ window previews are off by default.">Âm lượng từng app chỉ can thiệp luồng âm thanh khi app đó khác 100%. Ảnh xem trước ⌥⇥ mặc định tắt.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow" data-en="Install">Cài đặt</p>
+      <h2 data-en="Set up in a minute.">Cài trong một phút.</h2>
+    </div>
+    <ol class="steps">
+      <li class="card step">
+        <span class="num">1</span>
+        <h3 data-en="Drag into Applications">Kéo vào Applications</h3>
+        <p data-en="Open the zMac.dmg you downloaded and drag zMac into the Applications folder.">Mở file zMac.dmg vừa tải, kéo zMac vào thư mục Applications.</p>
+      </li>
+      <li class="card step">
+        <span class="num">2</span>
+        <h3 data-en="Open it the first time">Mở lần đầu</h3>
+        <p data-en="zMac isn't notarized by Apple yet, so macOS blocks the first launch. Click Done, open System Settings → Privacy &amp; Security, scroll down and click Open Anyway. You only do this once.">zMac chưa được Apple công chứng (notarize) nên lần đầu macOS sẽ chặn. Bấm Xong, vào Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật, kéo xuống và bấm Vẫn mở. Chỉ cần làm một lần.</p>
+      </li>
+      <li class="card step">
+        <span class="num">3</span>
+        <h3 data-en="Allow Accessibility">Cấp quyền Trợ năng</h3>
+        <p data-en="The first time you use ⌥⇥ or snapping, zMac asks for Accessibility access. Window switching, snapping, clipboard paste and the media keys need it.">Lần đầu bạn dùng ⌥⇥ hoặc chia cửa sổ, zMac sẽ xin quyền Trợ năng. Chuyển cửa sổ, chia cửa sổ, dán từ clipboard và nút điều khiển nhạc cần quyền này.</p>
+      </li>
+      <li class="card step">
+        <span class="num">4</span>
+        <h3 data-en="Pick what you use">Chọn thứ bạn dùng</h3>
+        <p data-en="Click the zMac icon in the menu bar, then Settings, to turn modules on or off and change shortcuts. Charge limiting installs a small daemon and asks for your admin password once.">Bấm icon zMac trên menu bar → Cài đặt để bật tắt từng module, đổi phím tắt. Giới hạn sạc cần cài thêm một daemon nhỏ, macOS hỏi mật khẩu admin một lần.</p>
+      </li>
+    </ol>
+    <div class="extras">
+      <div class="extra">
+        <p class="small" data-en="Prefer Terminal for step 2? After dragging zMac into Applications, run:">Thích dùng Terminal cho bước 2? Sau khi kéo zMac vào Applications, chạy:</p>
+        <div class="cmd"><code id="cmd-xattr">xattr -dr com.apple.quarantine /Applications/zMac.app</code><button class="copy" type="button" data-copy="cmd-xattr" data-en="Copy">Chép</button></div>
+      </div>
+      <div class="extra" id="hash" hidden>
+        <p class="small" data-en="To check the file wasn't altered, compare its SHA-256 with:">Muốn chắc file không bị sửa, so mã SHA-256 với:</p>
+        <div class="cmd"><code data-dl="sha" id="sha"></code><button class="copy" type="button" data-copy="sha" data-en="Copy">Chép</button></div>
+        <div class="cmd"><code id="cmd-sha">shasum -a 256 ~/Downloads/zMac.dmg</code><button class="copy" type="button" data-copy="cmd-sha" data-en="Copy">Chép</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="privacy" class="sec">
+  <div class="wrap priv">
+    <div>
+      <p class="eyebrow" data-en="Privacy">Riêng tư</p>
+      <h2 data-en="No network.<br>No account.">Không mạng.<br>Không tài khoản.</h2>
+      <p class="sub" data-en="zMac never connects to the internet: no analytics, no tracking, no update checks. Everything stays on your Mac, and the source is open so you can check for yourself.">zMac không kết nối internet: không gửi số liệu, không theo dõi, không kiểm tra cập nhật. Mọi thứ nằm trên máy bạn, và mã nguồn mở để bạn tự kiểm.</p>
+      <ul class="points">
+        <li><span class="tile c-b"><svg class="i"><use href="#i-keyboard"/></svg></span><p data-en="<b>Your keystrokes stay yours.</b> zMac registers shortcuts with the system instead of watching the keyboard."><b>Phím bạn gõ không đi qua zMac.</b> Phím tắt đăng ký với hệ thống, zMac không theo dõi bàn phím.</p></li>
+        <li><span class="tile c-p"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>Clipboard history stays local.</b> It lives in a folder on your Mac and skips anything password managers mark as secret."><b>Lịch sử clipboard chỉ ở trên máy.</b> Lưu trong một thư mục trên Mac và bỏ qua những gì trình quản lý mật khẩu đánh dấu là bí mật.</p></li>
+        <li><span class="tile c-g"><svg class="i"><use href="#i-sound"/></svg></span><p data-en="<b>Audio is never recorded.</b> For per-app volume, sound only passes through memory. Nothing is saved."><b>Âm thanh không bị ghi lại.</b> Khi chỉnh âm lượng từng app, âm thanh chỉ đi qua bộ nhớ, không lưu lại gì.</p></li>
+      </ul>
+    </div>
+    <div class="card perm">
+      <h3 data-en="Permissions zMac may ask for">Quyền zMac có thể xin</h3>
+      <table>
+        <thead><tr><th scope="col" data-en="Permission">Quyền</th><th scope="col" data-en="Used for">Dùng cho</th></tr></thead>
+        <tbody>
+          <tr><th scope="row" data-en="Accessibility">Trợ năng</th><td data-en="Window switching and snapping, pasting from the clipboard, media buttons">Chuyển và chia cửa sổ, dán từ clipboard, nút điều khiển nhạc</td></tr>
+          <tr><th scope="row" data-en="System audio recording">Ghi âm thanh hệ thống</th><td data-en="Per-app volume. Asked the first time you change an app's volume.">Âm lượng từng app. Chỉ hỏi lần đầu bạn chỉnh âm lượng một app.</td></tr>
+          <tr><th scope="row" data-en="Screen recording">Ghi màn hình</th><td data-en="Window previews in ⌥⇥. Off by default.">Ảnh xem trước trong ⌥⇥. Mặc định tắt.</td></tr>
+          <tr><th scope="row" data-en="Admin password, once">Mật khẩu admin, một lần</th><td data-en="Installing the charge limit daemon. Only if you use charge limiting.">Cài daemon giới hạn sạc. Chỉ khi bạn dùng tính năng này.</td></tr>
+        </tbody>
+      </table>
+      <h3 class="perm-h2" data-en="Where your data lives">Dữ liệu nằm ở đâu</h3>
+      <dl class="paths">
+        <dt data-en="Settings">Cài đặt</dt><dd><code>defaults read com.zmac.app</code></dd>
+        <dt data-en="Clipboard history">Lịch sử clipboard</dt><dd><code>~/Library/Application Support/zMac/Clipboard/</code></dd>
+        <dt data-en="Charge policy">Chính sách sạc</dt><dd><code>/Library/Application Support/zMac/battery-policy.json</code></dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section id="faq" class="sec">
+  <div class="wrap faq">
+    <div class="faq-side">
+      <p class="eyebrow" data-en="FAQ">Hỏi đáp</p>
+      <h2 data-en="Good to know.">Nên biết trước.</h2>
+      <div class="card limits">
+        <h3 data-en="Not there yet">Chưa làm được</h3>
+        <ul>
+          <li data-en="Album art: macOS 15.4+ blocks third-party apps from reading Now Playing, so the notch reads Music and Spotify only and shows the app icon. Play and skip still work with any player.">Ảnh bìa bài hát: macOS 15.4+ chặn app bên thứ ba đọc mục Đang phát, nên notch chỉ đọc được Music và Spotify, hiện icon app thay ảnh bìa. Nút phát, chuyển bài vẫn dùng được với mọi trình phát.</li>
+          <li data-en="⌥⇥ only sees windows on the current Space, plus minimized windows and hidden apps.">⌥⇥ chỉ thấy cửa sổ ở Space hiện tại, cộng cửa sổ thu nhỏ và app đang ẩn.</li>
+          <li data-en="No virtual displays or HiDPI unlock for 1440p screens yet.">Chưa có màn hình ảo, chưa mở khoá HiDPI cho màn 1440p.</li>
+          <li data-en="No master volume for HDMI speakers that lack hardware volume yet.">Chưa chỉnh được âm lượng tổng cho loa HDMI không có âm lượng phần cứng.</li>
+          <li data-en="No per-app EQ yet.">Chưa có EQ cho từng app.</li>
+          <li data-en="No automatic updates yet.">Chưa tự cập nhật.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="qa-list">
+      <details class="qa">
+        <summary data-en="Does zMac cost anything?">zMac có mất phí không?</summary>
+        <p data-en="No. zMac is free and open source under the MIT license. The code is on GitHub: read it, build it yourself, report bugs or send fixes. To build from source you only need Apple's Command Line Tools:">Không. zMac miễn phí và mã nguồn mở theo giấy phép MIT. Mã nguồn ở GitHub: bạn có thể đọc, tự build, báo lỗi hoặc gửi bản sửa. Tự build chỉ cần Command Line Tools của Apple:</p>
+        <div class="cmd"><code id="cmd-build">git clone https://github.com/KienHungPG/zMac.git &amp;&amp; cd zMac &amp;&amp; ./build.sh install</code><button class="copy" type="button" data-copy="cmd-build" data-en="Copy">Chép</button></div>
+      </details>
+      <details class="qa">
+        <summary data-en="Why does macOS block zMac the first time?">Vì sao macOS chặn zMac lần đầu?</summary>
+        <p data-en="zMac isn't signed with an Apple Developer ID or notarized by Apple yet. macOS blocks every app like that when it comes from the internet. Follow step 2 under Install and it opens normally from then on.">zMac chưa ký bằng chứng chỉ Developer ID và chưa được Apple công chứng. macOS chặn mọi app như vậy khi tải từ internet. Làm theo bước 2 ở phần Cài đặt, từ đó về sau app mở bình thường.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="Does it run on Intel Macs?">Mac Intel có dùng được không?</summary>
+        <p data-en="The current build is for Apple Silicon (M1 and later). It hasn't been tested on Intel Macs.">Bản hiện tại build cho Apple Silicon (M1 trở lên), chưa thử trên Mac Intel.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="I already use AltTab, Rectangle or Maccy. Will they clash?">Đang dùng AltTab, Rectangle, Maccy thì có đụng nhau không?</summary>
+        <p data-en="Running both can double up shortcuts or the notch UI. zMac lists any replaced app that's still running in Settings, with a button to quit it. If you'd rather keep the old app for one job, turn off the matching zMac module.">Chạy song song có thể trùng phím tắt hoặc trùng giao diện ở notch. Trong Cài đặt, zMac liệt kê app bị thay thế vẫn đang chạy, kèm nút thoát app đó. Muốn giữ app cũ cho việc nào thì tắt module tương ứng của zMac.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="My Mac has no notch.">Mac của tôi không có notch.</summary>
+        <p data-en="The Notch module starts off on those Macs. You can turn on a virtual notch in Settings if you want it.">Trên những máy này, module Notch tắt sẵn. Muốn dùng thì bật notch giả trong Cài đặt.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="Is charge limiting safe?">Giới hạn sạc có an toàn không?</summary>
+        <p data-en="Changing charging needs root, so zMac installs a very small daemon that only wakes up when the battery changes. If the daemon stops, it lets the Mac charge again and turns the adapter back on. Clicking Uninstall under Settings → Battery restores the defaults and removes the daemon.">Thay đổi việc sạc cần quyền root, nên zMac cài một daemon rất nhỏ, chỉ thức dậy khi pin thay đổi. Khi daemon dừng, nó cho máy sạc lại và bật lại adapter. Bấm Gỡ trong Cài đặt → Pin thì daemon trả mọi thứ về mặc định rồi tự xoá.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="How do I update?">Cập nhật thế nào?</summary>
+        <p data-en="zMac doesn't update itself yet. Come back here, download the new version and drag it over the old one in Applications. Because the app isn't Developer ID signed, macOS may ask for Accessibility again after an update: remove zMac from the list and add it back.">zMac chưa tự cập nhật. Quay lại trang này, tải bản mới, kéo đè lên bản cũ trong Applications. Vì app chưa ký Developer ID, sau khi cập nhật macOS có thể đòi cấp lại quyền Trợ năng: xoá zMac khỏi danh sách rồi thêm lại.</p>
+      </details>
+      <details class="qa">
+        <summary data-en="How do I uninstall it completely?">Gỡ hẳn zMac thế nào?</summary>
+        <p data-en="If you set up charge limiting, click Uninstall under Settings → Battery first. Then quit zMac and delete it from Applications. To also remove its settings and clipboard history:">Nếu đã cài giới hạn sạc, vào Cài đặt → Pin bấm Gỡ trước. Sau đó thoát zMac và xoá khỏi Applications. Muốn xoá luôn cài đặt và lịch sử clipboard:</p>
+        <div class="cmd"><code id="cmd-rm">defaults delete com.zmac.app; rm -rf ~/Library/Application\ Support/zMac</code><button class="copy" type="button" data-copy="cmd-rm" data-en="Copy">Chép</button></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <div class="final">
+      <img src="assets/icon.png" alt="" width="88" height="88">
+      <h2 data-en="Clear the menu bar.<br>Lighten the Mac.">Dọn menu bar.<br>Nhẹ cả máy.</h2>
+      <a class="btn btn-lg" href="download/zMac.dmg" download><svg class="i"><use href="#i-download"/></svg><span data-en="Download zMac">Tải zMac</span></a>
+      <p class="meta"><span data-en="Free · MIT">Miễn phí · MIT</span> · <span data-dl="version" data-en="Version 0.1.0">Phiên bản 0.1.0</span> · <span data-dl="minos" data-en="macOS 14 or later">macOS 14 trở lên</span> · <span data-dl="arch">Apple Silicon</span></p>
+      <a class="ghost ghost-i final-src" href="https://github.com/KienHungPG/zMac"><svg class="i"><use href="#i-code"/></svg><span data-en="Source code on GitHub">Mã nguồn trên GitHub</span></a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <p>© 2026 KienHungPG · <a href="https://github.com/KienHungPG/zMac/blob/main/LICENSE" data-en="MIT license">Giấy phép MIT</a></p>
+    <p><a href="https://github.com/KienHungPG/zMac" data-en="Source code">Mã nguồn</a> · <a href="https://github.com/KienHungPG/zMac/issues" data-en="Report a bug">Báo lỗi</a></p>
+    <p data-en="Thanks to yabai, MonitorControl and Roost (MIT) for showing the way.">Cảm ơn yabai, MonitorControl và Roost (MIT) đã chỉ đường.</p>
+    <p data-en="This page uses no cookies, no tracking and nothing from third parties.">Trang này không cookie, không theo dõi, không tải gì từ bên thứ ba.</p>
+  </div>
+</footer>
+</body>
+</html>
