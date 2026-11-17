@@ -68,6 +68,8 @@ final class SwitcherModule: ZModule {
     @ObservationIgnored private var active = false
     @ObservationIgnored private var showWork: DispatchWorkItem?
     @ObservationIgnored private var generation = 0
+    /// Ảnh xem trước lần trước (chỉ khi bật xem trước): mở HUD là có ảnh ngay, rồi chụp lại ở nền.
+    @ObservationIgnored private var thumbCache: [CGWindowID: NSImage] = [:]
     @ObservationIgnored private var appOrder: [pid_t] = []
     @ObservationIgnored private var activationObserver: NSObjectProtocol?
 
@@ -91,6 +93,7 @@ final class SwitcherModule: ZModule {
     }
 
     func stop() {
+        thumbCache = [:]
         cancel()
         HotKeyCenter.shared.unregister(hotkeys)
         hotkeys = []
@@ -160,22 +163,38 @@ final class SwitcherModule: ZModule {
     // MARK: Phiên chuyển
 
     private func trigger(combo: KeyCombo, reverse: Bool, appOnly: Bool) {
-        if active { move(reverse ? -1 : 1); return }
-        guard AXIsProcessTrusted() else { Permissions.shared.requestAccessibility(); return }
+        log.notice("switcher: phím tắt, active=\(self.active, privacy: .public)")
+        if active {
+            // Phiên trước bị kẹt (lỡ mất sự kiện thả ⌥, HUD không còn hiện): bỏ nó, mở phiên mới.
+            let stuck = showWork == nil && panel?.isVisible != true
+            if !stuck { move(reverse ? -1 : 1); return }
+            log.notice("switcher: phiên trước bị kẹt, mở lại")
+            endSession()
+        }
+        guard AXIsProcessTrusted() else {
+            log.notice("switcher: chưa có quyền Trợ năng")
+            Permissions.shared.requestAccessibility()
+            return
+        }
 
         let frontPid = NSWorkspace.shared.frontmostApplication?.processIdentifier
         let items = collect(onlyPid: appOnly ? frontPid : nil)
+        log.notice("switcher: \(items.count, privacy: .public) cửa sổ")
         guard !items.isEmpty else { return }
         state.items = items
-        state.thumbnails = [:]
         state.showThumbnails = showThumbnails && CGPreflightScreenCaptureAccess()
+        state.thumbnails = state.showThumbnails ? thumbCache : [:]
         state.selected = items.count > 1 ? (reverse ? items.count - 1 : 1) : 0
         holdMods = combo.eventModifiers.subtracting(.shift)
         active = true
         generation += 1
 
         // Đã nhả phím (bấm nhanh): chuyển ngay.
-        if !NSEvent.modifierFlags.isSuperset(of: holdMods) { commit(); return }
+        if !NSEvent.modifierFlags.isSuperset(of: holdMods) {
+            log.notice("switcher: thả phím nhanh, chuyển luôn không hiện HUD")
+            commit()
+            return
+        }
 
         installMonitors()
         registerSessionKeys()
@@ -214,6 +233,7 @@ final class SwitcherModule: ZModule {
     private func commit() {
         guard active else { return }
         let item = state.items.indices.contains(state.selected) ? state.items[state.selected] : nil
+        log.notice("switcher: chọn \(self.state.selected, privacy: .public)/\(self.state.items.count, privacy: .public), pid \(item?.pid ?? 0, privacy: .public), app đang trước pid \(NSWorkspace.shared.frontmostApplication?.processIdentifier ?? 0, privacy: .public)")
         endSession()
         if let item { Self.focus(item) }
     }
@@ -347,6 +367,10 @@ final class SwitcherModule: ZModule {
 
     private func showPanel() {
         guard active else { return }
+        showWork = nil
+        // ⌥ đã thả trong lúc chờ (có thể trước khi monitor kịp cài): chuyển luôn, không hiện HUD.
+        if !NSEvent.modifierFlags.isSuperset(of: holdMods) { commit(); return }
+        log.notice("switcher: hiện HUD")
         if panel == nil {
             let p = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
             p.isOpaque = false
@@ -382,19 +406,42 @@ final class SwitcherModule: ZModule {
     private func loadThumbnails(generation gen: Int) {
         let targets = state.items.prefix(30).map { $0.id }
         let width = cardWidth * 2
+        // Bỏ ảnh của cửa sổ đã đóng.
+        let live = Set(state.items.map { $0.id })
+        thumbCache = thumbCache.filter { live.contains($0.key) }
         Task { [weak self] in
-            guard let content = try? await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) else { return }
+            let content: SCShareableContent
+            do {
+                content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false)
+            } catch {
+                log.error("switcher: không lấy được danh sách cửa sổ để chụp: \(error.localizedDescription, privacy: .public)")
+                return
+            }
             let byID = Dictionary(content.windows.map { ($0.windowID, $0) }, uniquingKeysWith: { a, _ in a })
-            for id in targets {
-                guard let self, self.generation == gen else { return }
-                guard let w = byID[id], w.frame.width > 1 else { continue }
-                let cfg = SCStreamConfiguration()
-                cfg.width = Int(width)
-                cfg.height = Int(width * w.frame.height / w.frame.width)
-                cfg.showsCursor = false
-                guard let img = try? await SCScreenshotManager.captureImage(
-                    contentFilter: SCContentFilter(desktopIndependentWindow: w), configuration: cfg) else { continue }
-                if self.generation == gen { self.state.thumbnails[id] = NSImage(cgImage: img, size: .zero) }
+            // Chụp song song: HUD chỉ hiện trong lúc giữ ⌥, chụp lần lượt thường không kịp.
+            await withTaskGroup(of: (CGWindowID, CGImage?).self) { group in
+                for id in targets {
+                    guard let w = byID[id], w.frame.width > 1 else { continue }
+                    let cfg = SCStreamConfiguration()
+                    cfg.width = Int(width)
+                    cfg.height = Int(width * w.frame.height / w.frame.width)
+                    cfg.showsCursor = false
+                    let filter = SCContentFilter(desktopIndependentWindow: w)
+                    group.addTask {
+                        do {
+                            return (id, try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: cfg))
+                        } catch {
+                            log.error("switcher: chụp cửa sổ \(id) lỗi: \(error.localizedDescription, privacy: .public)")
+                            return (id, nil)
+                        }
+                    }
+                }
+                for await (id, img) in group {
+                    guard let self, let img else { continue }
+                    let image = NSImage(cgImage: img, size: .zero)
+                    self.thumbCache[id] = image
+                    if self.generation == gen { self.state.thumbnails[id] = image }
+                }
             }
         }
     }
@@ -465,8 +512,8 @@ struct SwitcherView: View {
                     .onHover { if $0 { state.selected = i } }
             }
         }
-        .padding(14)
-        .background(VisualEffectBlur(material: .hudWindow).clipShape(RoundedRectangle(cornerRadius: 18)))
+        .padding(16)
+        .zFloatingPanel(radius: 24)
         .fixedSize()
     }
 }
@@ -504,8 +551,10 @@ struct SwitcherCard: View {
         .opacity(item.isMinimized || item.isHidden ? 0.6 : 1)
         .padding(6)
         .frame(width: width)
-        .background(RoundedRectangle(cornerRadius: 10).fill(selected ? Color.accentColor.opacity(0.35) : .clear))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(selected ? Color.accentColor : .clear, lineWidth: 2))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(selected ? AnyShapeStyle(ZTheme.blue.gradient.opacity(0.32)) : AnyShapeStyle(Color.clear)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .strokeBorder(selected ? ZTheme.blue.light.opacity(0.85) : .clear, lineWidth: 2))
         .foregroundStyle(.white)
     }
 }

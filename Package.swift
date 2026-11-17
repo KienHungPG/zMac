@@ -30,6 +30,8 @@ let package = Package(
             path: "Sources/zmac-helper",
             linkerSettings: [.linkedFramework("IOKit")]
         ),
+        // Hook PermissionRequest của Claude Code: chuyển yêu cầu sang notch qua Unix socket. Chỉ Foundation.
+        .executableTarget(name: "zmac-claude-hook", path: "Sources/zmac-claude-hook"),
         // swift-testing. Chỉ có Command Line Tools thì chạy bằng scripts/test.sh (thêm đường dẫn Testing.framework).
         .testTarget(name: "zMacTests", dependencies: ["zMac", "ZMacShared"], path: "Tests/zMacTests"),
     ]

@@ -492,15 +492,19 @@ struct ClipboardView: View {
     var body: some View {
         let list = model.filtered
         VStack(spacing: 0) {
-            HStack {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.white.opacity(0.55))
                 TextField(L("Tìm trong lịch sử", "Search history"), text: $model.query)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 14))
                     .focused($searchFocused)
                     .onChange(of: model.query) { _, _ in model.selected = 0 }
             }
+            .padding(.horizontal, 12).padding(.vertical, 9)
+            .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(.white.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(searchFocused ? ZTheme.purple.light.opacity(0.7) : .white.opacity(0.08), lineWidth: 1))
             .padding(10)
-            Divider()
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -529,7 +533,14 @@ struct ClipboardView: View {
                     .foregroundStyle(.secondary).frame(maxHeight: .infinity)
             }
         }
-        .background(VisualEffectBlur(material: .popover))
+        .background {
+            ZStack {
+                VisualEffectBlur(material: .hudWindow)
+                LinearGradient(colors: [ZTheme.navyTop.opacity(0.72), ZTheme.navyBottom.opacity(0.86)],
+                               startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .environment(\.colorScheme, .dark)
         .onAppear { searchFocused = true }
     }
 }
@@ -541,20 +552,66 @@ struct ClipRow: View {
     let thumb: NSImage?
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             if let thumb {
-                Image(nsImage: thumb).resizable().aspectRatio(contentMode: .fill).frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                Image(nsImage: thumb).resizable().aspectRatio(contentMode: .fill).frame(width: 30, height: 30)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             } else {
-                Image(systemName: item.kind == .files ? "doc" : "text.alignleft").foregroundStyle(.secondary).frame(width: 32)
+                ZTile(symbol: symbol, hue: hue, size: 28)
             }
             Text(item.text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ⏎ "))
+                .font(.system(size: 13))
                 .lineLimit(2).truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if item.pinned { Image(systemName: "pin.fill").font(.caption).foregroundStyle(.orange) }
-            if index < 9 { Text("⌘\(index + 1)").font(.caption).foregroundStyle(.secondary).monospacedDigit() }
+            if item.pinned { Image(systemName: "pin.fill").font(.system(size: 11)).foregroundStyle(ZTheme.orange.light) }
+            if index < 9 {
+                Text("⌘\(index + 1)")
+                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.5))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(.white.opacity(0.07)))
+            }
         }
         .padding(.horizontal, 8).padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.25) : .clear))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(selected ? AnyShapeStyle(ZTheme.purple.gradient.opacity(0.3)) : AnyShapeStyle(Color.clear)))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .strokeBorder(selected ? ZTheme.purple.light.opacity(0.6) : .clear, lineWidth: 1))
+    }
+
+    private var isLink: Bool {
+        item.kind == .text && (item.text.hasPrefix("http://") || item.text.hasPrefix("https://"))
+    }
+    private var symbol: String {
+        switch item.kind {
+        case .files: "doc.fill"
+        case .image: "photo"
+        case .text: isLink ? "link" : "text.alignleft"
+        }
+    }
+    private var hue: ZTheme.Hue {
+        switch item.kind {
+        case .files: ZTheme.orange
+        case .image: ZTheme.green
+        case .text: isLink ? ZTheme.blue : ZTheme.slate
+        }
     }
 }
+
+#if DEBUG
+extension ClipboardModule {
+    /// Chỉ cho `--render-ui`: vài mục mẫu, không đọc lịch sử thật.
+    func previewItems() {
+        let now = Date()
+        items = [
+            ClipItem(kind: .text, text: "git push origin main", date: now, pinned: true, hash: "1"),
+            ClipItem(kind: .text, text: "https://zmac-website.vercel.app", date: now, hash: "2"),
+            ClipItem(kind: .text, text: "Họp thiết kế lúc 15:00, phòng 2", date: now, hash: "3"),
+            ClipItem(kind: .files, text: "bao-cao-quy-3.pdf", files: ["/tmp/bao-cao-quy-3.pdf"], date: now, hash: "4"),
+            ClipItem(kind: .text, text: "defaults read com.zmac.app", date: now, hash: "5"),
+            ClipItem(kind: .text, text: "12 Lý Thường Kiệt, Hoàn Kiếm, Hà Nội", date: now, hash: "6"),
+        ]
+        selected = 1
+    }
+}
+#endif

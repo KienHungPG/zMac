@@ -47,14 +47,20 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/zMac" "$APP/Contents/MacOS/zMac"
 cp "$BIN/zmac-helper" "$APP/Contents/MacOS/zmac-helper"
+cp "$BIN/zmac-claude-hook" "$APP/Contents/MacOS/zmac-claude-hook"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+# Khoá công khai Ed25519 để app tự kiểm chữ ký bản cập nhật (scripts/update-sign.swift genkey tạo ra).
+if [ -s Resources/update-public-key.txt ]; then
+    /usr/libexec/PlistBuddy -c "Add :ZMUpdatePublicKey string $(tr -d '[:space:]' < Resources/update-public-key.txt)" \
+        "$APP/Contents/Info.plist"
+fi
 cp Resources/helper-install.sh "$APP/Contents/Resources/"
 if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns "$APP/Contents/Resources/"; fi
 cp -R "$MRA_FW" "$APP/Contents/Frameworks/"
 cp "$MRA/bin/mediaremote-adapter.pl" "$APP/Contents/Resources/"
 cp "$MRA/LICENSE" "$APP/Contents/Resources/MediaRemoteAdapter-LICENSE.txt"
 # Bỏ ký hiệu cục bộ: binary nhỏ hơn, nạp nhanh hơn.
-strip -x "$APP/Contents/MacOS/zMac" "$APP/Contents/MacOS/zmac-helper"
+strip -x "$APP/Contents/MacOS/zMac" "$APP/Contents/MacOS/zmac-helper" "$APP/Contents/MacOS/zmac-claude-hook"
 
 # Ký bằng chứng chỉ cố định để macOS giữ quyền (Trợ năng, Ghi âm thanh) qua các lần build.
 # Không có chứng chỉ thì ký ad-hoc: chạy được nhưng mỗi lần build lại phải cấp quyền.
@@ -66,24 +72,36 @@ else
 fi
 codesign --force --sign "$SIGN" "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
 codesign --force --sign "$SIGN" --identifier com.zmac.helper "$APP/Contents/MacOS/zmac-helper"
+codesign --force --sign "$SIGN" --identifier com.zmac.claude-hook "$APP/Contents/MacOS/zmac-claude-hook"
 codesign --force --sign "$SIGN" "$APP"
 echo "→ $APP (ký: $SIGN, $(du -sh "$APP" | cut -f1 | tr -d ' '))"
 
 stop_running() {
     pkill -x zMac || true
-    for _ in $(seq 30); do pgrep -x zMac >/dev/null || break; sleep 0.1; done
+    for _ in $(seq 50); do pgrep -x zMac >/dev/null || break; sleep 0.1; done
+    # LaunchServices cần thêm chút thời gian sau khi tiến trình cũ thoát, mở ngay dễ gặp lỗi -609.
+    sleep 0.5
+}
+
+# Mở app, lỗi thì thử lại vài lần (LaunchServices chưa kịp nhận bản vừa chép).
+open_app() {
+    for i in 1 2 3; do
+        open "$1" 2>/dev/null && return 0
+        sleep "$i"
+    done
+    open "$1"
 }
 
 case "${1:-}" in
 run)
     stop_running
-    open "$APP"
+    open_app "$APP"
     ;;
 install)
     stop_running
     rm -rf /Applications/zMac.app
     cp -R "$APP" /Applications/zMac.app
     echo "→ đã cài /Applications/zMac.app"
-    open /Applications/zMac.app
+    open_app /Applications/zMac.app
     ;;
 esac

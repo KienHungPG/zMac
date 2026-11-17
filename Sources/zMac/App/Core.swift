@@ -12,17 +12,35 @@ enum Lang: String, CaseIterable {
     static var current: Lang {
         Lang(rawValue: UserDefaults.standard.string(forKey: "app.language") ?? "system") ?? .system
     }
-    static let isVietnamese: Bool = {
-        switch current {
+    var isVietnamese: Bool {
+        switch self {
         case .vi: return true
         case .en: return false
         case .system: return Locale.preferredLanguages.first?.hasPrefix("vi") ?? false
         }
-    }()
+    }
 }
 
-/// Chuỗi song ngữ. Đổi ngôn ngữ có hiệu lực sau khi mở lại app.
-func L(_ vi: String, _ en: String) -> String { Lang.isVietnamese ? vi : en }
+/// Ngôn ngữ giao diện đang dùng. View SwiftUI gọi L() trong body nên tự vẽ lại khi đổi, không cần mở lại app.
+@Observable
+final class LangState {
+    static let shared = LangState()
+    private(set) var isVietnamese = Lang.current.isVietnamese
+
+    #if DEBUG
+    /// Chỉ cho `--render-ui`: đổi ngôn ngữ mà không ghi defaults.
+    func previewSet(vietnamese: Bool) { isVietnamese = vietnamese }
+    #endif
+
+    @MainActor func apply(_ lang: Lang) {
+        Pref.set("app.language", lang.rawValue)
+        isVietnamese = lang.isVietnamese
+        MainMenu.install()   // menu AppKit không tự vẽ lại
+    }
+}
+
+/// Chuỗi song ngữ.
+func L(_ vi: String, _ en: String) -> String { LangState.shared.isVietnamese ? vi : en }
 
 let log = Logger(subsystem: "com.zmac.app", category: "app")
 
@@ -34,13 +52,21 @@ enum Pref {
     static func int(_ k: String, _ def: Int) -> Int { d.object(forKey: k) as? Int ?? def }
     static func double(_ k: String, _ def: Double) -> Double { d.object(forKey: k) as? Double ?? def }
     static func string(_ k: String, _ def: String) -> String { d.string(forKey: k) ?? def }
-    static func set(_ k: String, _ v: Any?) { d.set(v, forKey: k) }
+    static func set(_ k: String, _ v: Any?) {
+        #if DEBUG
+        if UIPreview.active { return }   // --render-ui không được ghi defaults
+        #endif
+        d.set(v, forKey: k)
+    }
 
     static func codable<T: Codable>(_ k: String, _ def: T) -> T {
         guard let data = d.data(forKey: k), let v = try? JSONDecoder().decode(T.self, from: data) else { return def }
         return v
     }
     static func setCodable<T: Codable>(_ k: String, _ v: T) {
+        #if DEBUG
+        if UIPreview.active { return }
+        #endif
         d.set(try? JSONEncoder().encode(v), forKey: k)
     }
 }

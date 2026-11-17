@@ -7,6 +7,9 @@ import ZMacShared
 
 // Notch kiểu NotchNook.
 // - Lúc thu gọn: một panel đúng bằng notch, chỉ có NSTrackingArea. Không global mouse monitor, không timer.
+//   Nhạc / HUD làm notch phình ra; mặc định chỉ sang trái vì bên phải notch là icon menu bar (sẽ bị che).
+//   Cửa sổ vì thế không đối xứng quanh notch: SwiftUI vẽ trên một "canvas" luôn căn giữa notch (NSHostingView
+//   đặt trong một view chứa), cửa sổ chỉ là khung cắt. Đổi khung cửa sổ không làm hình nhảy.
 // - Rê chuột vào: phóng cửa sổ ra kích thước mở ngay (trong suốt) rồi animate hình đen trong SwiftUI.
 //   Thu lại: animate hình nhỏ lại rồi mới thu cửa sổ. Cây view lúc mở bị gỡ khỏi view tree khi thu gọn.
 // - Nhạc: distributed notification của Music / Spotify. Điều khiển bằng phím media (mọi trình phát).
@@ -24,7 +27,7 @@ final class NotchModule: ZModule {
     }
     static var defaultEnabled: Bool { MainActor.assumeIsolated { Hardware.notchScreen != nil } }
 
-    enum Tab { case nowPlaying, shelf }
+    enum Tab { case nowPlaying, lyrics, shelf, pet }
 
     // MARK: Cài đặt
 
@@ -37,8 +40,27 @@ final class NotchModule: ZModule {
     var liveActivity = Pref.bool("notch.liveActivity", true) {
         didSet { Pref.set("notch.liveActivity", liveActivity); if !open { updateLayout() } }
     }
+    /// Hiện hai bên notch, đối xứng (mặc định): trái nhạc, phải thú cưng. Tắt thì chỉ phình sang trái để không che
+    /// icon menu bar sát notch.
+    var wingsBothSides = Pref.bool("notch.wingsBothSides", true) {
+        didSet { Pref.set("notch.wingsBothSides", wingsBothSides); if !open { updateLayout() } }
+    }
     var hoverDelay = Pref.double("notch.hoverDelay", 0.08) {
         didSet { Pref.set("notch.hoverDelay", hoverDelay) }
+    }
+    /// Tab Lời (lrclib.net). Tắt sẵn vì phải gọi mạng.
+    var lyricsEnabled = Pref.bool("notch.lyrics", false) {
+        didSet {
+            Pref.set("notch.lyrics", lyricsEnabled)
+            if !lyricsEnabled {
+                if tab == .lyrics { tab = .nowPlaying }
+                lyrics.clear()
+            }
+        }
+    }
+    /// Bấm vào notch mới mở (thay vì rê chuột vào).
+    var openOnClick = Pref.bool("notch.openOnClick", false) {
+        didSet { Pref.set("notch.openOnClick", openOnClick) }
     }
 
     // MARK: Trạng thái (view đọc)
@@ -48,8 +70,11 @@ final class NotchModule: ZModule {
     /// Trạng thái view: đổi trong withAnimation để nội dung và hình animate cùng nhau.
     private(set) var contentOpen = false
     private(set) var shapeSize: CGSize = .zero
+    /// Tâm hình lệch so với tâm notch (âm = sang trái).
+    private(set) var shapeOffset: CGFloat = 0
     var tab: Tab = .nowPlaying
-    private(set) var hudPercent: Int?
+    /// Thông báo ngắn hai bên notch lúc thu gọn (cắm sạc, hạn mức Claude đặt lại).
+    private(set) var hud: NotchHUD?
     private(set) var track: NowPlayingTrack?
     private(set) var shelf: [URL] = []
     private(set) var battery: BatterySnapshot?
@@ -57,11 +82,14 @@ final class NotchModule: ZModule {
     private(set) var notchWidth: CGFloat = 0
     private(set) var notchHeight: CGFloat = 0
     private(set) var hasTarget = false
+    /// Claude Code đang chờ người dùng duyệt: giữ notch mở tới khi trả lời xong.
+    private(set) var claudeAttention = false
 
     // MARK: Nội bộ
 
     @ObservationIgnored private var panel: NotchPanel?
     @ObservationIgnored private var host: NotchHostingView?
+    @ObservationIgnored private var container: NSView?
     /// Tâm ngang của notch và mép trên màn hình (toạ độ Cocoa toàn cục).
     @ObservationIgnored private var anchor = CGPoint.zero
     @ObservationIgnored private var expandWork: DispatchWorkItem?
@@ -72,6 +100,7 @@ final class NotchModule: ZModule {
     @ObservationIgnored private var powerSource: CFRunLoopSource?
     @ObservationIgnored private var lastExternal: Bool?
     @ObservationIgnored private let nowPlaying = NowPlayingMonitor()
+    @ObservationIgnored let lyrics = LyricsStore()
 
     init() {}
 
@@ -91,6 +120,8 @@ final class NotchModule: ZModule {
     }
 
     func stop() {
+        ModuleManager.shared.module(ClaudeModule.self)?.passAll()
+        claudeAttention = false
         nowPlaying.stop()
         nowPlaying.onChange = nil
         stopPower()
@@ -100,6 +131,7 @@ final class NotchModule: ZModule {
         expandWork = nil; collapseWork = nil; resizeWork = nil; hudWork = nil
         closePanel()
         NotchIcons.cache.removeAll()
+        lyrics.clear()
         track = nil
         hasTarget = false
     }
@@ -109,13 +141,83 @@ final class NotchModule: ZModule {
     var wingWidth: CGFloat { notchHeight + 14 }
     var showsLiveActivity: Bool { liveActivity && track?.isPlaying == true }
 
+    /// Bên trái đủ chỗ cho cả hai thứ (ảnh bìa + sóng nhạc, hoặc icon + chữ HUD).
+    var leftWingWidth: CGFloat { 2 * wingWidth - 14 }
+
+    /// Thú cưng ngồi cạnh notch khi không có nhạc / HUD.
+    var pet: PetModule? {
+        guard let p = ModuleManager.shared.module(PetModule.self), p.showInNotch else { return nil }
+        return p
+    }
+    /// Hai bên: thú cưng ngồi bên phải cả khi có nhạc. Chỉ bên trái: nhường chỗ cho nhạc.
+    var showsPet: Bool { pet != nil && hud == nil && (wingsBothSides || !showsLiveActivity) }
+    var petWingWidth: CGFloat { notchHeight + 20 }
+
+    /// Phần phình ra hai bên notch lúc thu gọn.
+    var collapsedExtents: (left: CGFloat, right: CGFloat) {
+        if hud != nil { return wingsBothSides ? (wingWidth, wingWidth) : (leftWingWidth, 0) }
+        if wingsBothSides {
+            // Đối xứng quanh notch: hai cánh luôn bằng nhau.
+            guard showsLiveActivity || showsPet else { return (0, 0) }
+            let w = showsPet ? petWingWidth : wingWidth
+            return (w, w)
+        }
+        if showsLiveActivity { return (leftWingWidth, 0) }
+        return showsPet ? (petWingWidth, 0) : (0, 0)
+    }
+
+    /// Module khác (thú cưng) đổi thứ hiện lúc thu gọn.
+    func refreshCollapsed() {
+        if tab == .pet && ModuleManager.shared.module(PetModule.self) == nil { tab = .nowPlaying }
+        if !open { updateLayout() }
+    }
+
     var collapsedSize: CGSize {
-        let wide = hudPercent != nil || showsLiveActivity
-        return CGSize(width: notchWidth + (wide ? 2 * wingWidth : 0), height: notchHeight)
+        let e = collapsedExtents
+        return CGSize(width: notchWidth + e.left + e.right, height: notchHeight)
+    }
+
+    var collapsedOffset: CGFloat {
+        let e = collapsedExtents
+        return (e.right - e.left) / 2
+    }
+
+    /// Vùng SwiftUI vẽ: đối xứng quanh notch, đủ chứa mọi trạng thái.
+    private var canvasSize: CGSize {
+        let side = max((expandedSize.width - notchWidth) / 2, leftWingWidth, wingWidth)
+        return CGSize(width: notchWidth + 2 * side, height: max(expandedSize.height, notchHeight))
+    }
+
+    /// Khoảng ngang của hình so với tâm notch.
+    private struct Span: Equatable {
+        var minX: CGFloat
+        var maxX: CGFloat
+        var height: CGFloat
+
+        init(size: CGSize, offset: CGFloat) {
+            minX = offset - size.width / 2
+            maxX = offset + size.width / 2
+            height = size.height
+        }
+
+        func union(_ o: Span) -> Span {
+            var u = self
+            u.minX = min(minX, o.minX)
+            u.maxX = max(maxX, o.maxX)
+            u.height = max(height, o.height)
+            return u
+        }
     }
 
     var expandedSize: CGSize {
-        CGSize(width: max(540, notchWidth + 300), height: notchHeight + 150)
+        // Hàng trên bên phải có thêm "5h ·· 7d ··" thì nới rộng cho đủ chỗ.
+        let extra: CGFloat = showsClaudeUsage ? 100 : 0
+        return CGSize(width: max(540 + extra, notchWidth + 300 + extra), height: notchHeight + 150)
+    }
+
+    var showsClaudeUsage: Bool {
+        guard let c = ModuleManager.shared.module(ClaudeModule.self), c.showUsage else { return false }
+        return c.usage?.hasLimits == true
     }
 
     /// Vị trí notch: màn có notch thật, hoặc notch giả ở giữa mép trên màn chính (nếu bật).
@@ -134,6 +236,8 @@ final class NotchModule: ZModule {
         guard let g = Self.geometry(fake: showOnNonNotch) else {
             closePanel()
             hasTarget = false
+            // Không còn chỗ hiện thẻ duyệt: trả yêu cầu Claude về terminal.
+            ModuleManager.shared.module(ClaudeModule.self)?.passAll()
             return
         }
         hasTarget = true
@@ -145,8 +249,10 @@ final class NotchModule: ZModule {
         open = false
         contentOpen = false
         shapeSize = collapsedSize
-        setWindow(shapeSize)
+        shapeOffset = collapsedOffset
+        setWindow(Span(size: shapeSize, offset: shapeOffset))
         panel?.orderFrontRegardless()
+        if claudeAttention { setOpen(true) }
     }
 
     private func makePanel() {
@@ -155,9 +261,13 @@ final class NotchModule: ZModule {
         h.sizingOptions = []   // không để SwiftUI tự đổi kích thước cửa sổ
         h.onEnter = { [weak self] in self?.mouseEntered() }
         h.onExit = { [weak self] in self?.mouseExited() }
-        p.contentView = h
+        h.onMouseDown = { [weak self] in self?.clicked() }
+        let c = FlippedView()
+        c.addSubview(h)
+        p.contentView = c
         panel = p
         host = h
+        container = c
     }
 
     private func closePanel() {
@@ -166,26 +276,34 @@ final class NotchModule: ZModule {
         panel?.close()
         panel = nil
         host = nil
+        container = nil
     }
 
-    private func setWindow(_ size: CGSize) {
-        guard let panel, size.width > 0, size.height > 0 else { return }
-        let f = NSRect(x: (anchor.x - size.width / 2).rounded(), y: anchor.y - size.height,
-                       width: size.width.rounded(), height: size.height)
+    /// Đặt khung cửa sổ, rồi dời canvas để tâm canvas luôn trùng tâm notch trên màn hình.
+    private func setWindow(_ span: Span) {
+        guard let panel, let host, span.maxX > span.minX, span.height > 0 else { return }
+        let minX = (anchor.x + span.minX).rounded()
+        let f = NSRect(x: minX, y: anchor.y - span.height, width: (anchor.x + span.maxX).rounded() - minX, height: span.height)
+        let canvas = canvasSize
+        let hostFrame = NSRect(x: (anchor.x - canvas.width / 2).rounded() - f.minX, y: 0, width: canvas.width, height: canvas.height)
+        if host.frame != hostFrame { host.frame = hostFrame }
         if panel.frame != f { panel.setFrame(f, display: true) }
-        host?.refreshTracking()
+        host.refreshTracking()
     }
 
     /// Đổi kích thước: cửa sổ nới ra ngay (đủ chứa cả cũ lẫn mới), hình animate, xong mới thu cửa sổ về đúng cỡ.
     private func updateLayout(animated: Bool = true) {
         guard panel != nil else { return }
         let target = open ? expandedSize : collapsedSize
-        let union = CGSize(width: max(shapeSize.width, target.width), height: max(shapeSize.height, target.height))
+        let targetOffset = open ? 0 : collapsedOffset
+        let next = Span(size: target, offset: targetOffset)
+        let union = Span(size: shapeSize, offset: shapeOffset).union(next)
         resizeWork?.cancel()
         setWindow(union)
         let isOpen = open
         let apply = {
             self.shapeSize = target
+            self.shapeOffset = targetOffset
             self.contentOpen = isOpen
         }
         if animated {
@@ -193,8 +311,8 @@ final class NotchModule: ZModule {
         } else {
             apply()
         }
-        if union != target {
-            let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.setWindow(target) } }
+        if union != next {
+            let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.setWindow(next) } }
             resizeWork = w
             DispatchQueue.main.asyncAfter(deadline: .now() + (animated ? 0.4 : 0), execute: w)
         }
@@ -202,10 +320,18 @@ final class NotchModule: ZModule {
 
     // MARK: Rê chuột
 
+    /// Chế độ bấm để mở: bấm vào notch đang thu gọn thì mở.
+    private func clicked() {
+        guard openOnClick, !open else { return }
+        collapseWork?.cancel()
+        collapseWork = nil
+        setOpen(true)
+    }
+
     private func mouseEntered() {
         collapseWork?.cancel()
         collapseWork = nil
-        guard !open else { return }
+        guard !open, !openOnClick else { return }
         expandWork?.cancel()
         let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.setOpen(true) } }
         expandWork = w
@@ -226,7 +352,7 @@ final class NotchModule: ZModule {
     }
 
     private func collapseIfIdle() {
-        guard open, let panel else { return }
+        guard open, let panel, !claudeAttention else { return }
         // Đang giữ chuột (kéo file ra / vào): chờ thả xong. Chỉ chạy khi đang mở, không phải lúc rảnh.
         if NSEvent.pressedMouseButtons & 1 != 0 || dropTargeted {
             scheduleCollapse(after: 0.3)
@@ -245,6 +371,24 @@ final class NotchModule: ZModule {
         open = value
         if value { battery = BatteryReader.snapshot() }
         updateLayout()
+    }
+
+    // MARK: Claude Code
+
+    var canShowClaude: Bool { panel != nil }
+
+    func setClaudeAttention(_ on: Bool) {
+        guard claudeAttention != on else { return }
+        claudeAttention = on
+        if on {
+            ModuleManager.shared.module(PetModule.self)?.poke()
+            expandWork?.cancel()
+            collapseWork?.cancel()
+            collapseWork = nil
+            setOpen(true)
+        } else if open {
+            scheduleCollapse(after: 0.6)
+        }
     }
 
     // MARK: Kéo thả file
@@ -314,6 +458,9 @@ final class NotchModule: ZModule {
 
     private func trackChanged(_ t: NowPlayingTrack?) {
         let wasLive = showsLiveActivity
+        if t?.title != track?.title || t?.isPlaying != track?.isPlaying {
+            ModuleManager.shared.module(PetModule.self)?.poke()
+        }
         track = t
         if !open && wasLive != showsLiveActivity { updateLayout() }
     }
@@ -357,24 +504,27 @@ final class NotchModule: ZModule {
         let b = BatteryReader.snapshot()
         battery = b
         let external = b?.externalConnected ?? false
-        if chargingHUD, lastExternal == false, external, let b { showChargingHUD(b.percent) }
+        if chargingHUD, lastExternal == false, external, let b {
+            showHUD(NotchHUD(symbol: "bolt.fill", text: "\(b.percent)%", color: ZTheme.green.light))
+        }
         lastExternal = external
     }
 
-    private func showChargingHUD(_ percent: Int) {
+    func showHUD(_ value: NotchHUD, seconds: Double = 2.5) {
         guard panel != nil else { return }
-        hudPercent = percent
+        ModuleManager.shared.module(PetModule.self)?.poke()
+        hud = value
         if !open { updateLayout() }
         hudWork?.cancel()
         let w = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                self.hudPercent = nil
+                self.hud = nil
                 if !self.open { self.updateLayout() }
             }
         }
         hudWork = w
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: w)
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: w)
     }
 
     // MARK: Cài đặt
@@ -391,14 +541,31 @@ final class NotchModule: ZModule {
                        isOn: Binding(get: { self.showOnNonNotch }, set: { self.showOnNonNotch = $0 }))
                 Toggle(L("Báo pin khi cắm sạc", "Show battery when plugging in"),
                        isOn: Binding(get: { self.chargingHUD }, set: { self.chargingHUD = $0 }))
-                Toggle(L("Hiện app đang phát nhạc hai bên notch", "Show the playing app beside the notch"),
+                Toggle(L("Hiện app đang phát nhạc cạnh notch", "Show the playing app beside the notch"),
                        isOn: Binding(get: { self.liveActivity }, set: { self.liveActivity = $0 }))
-                Picker(L("Chờ trước khi mở", "Delay before opening"),
-                       selection: Binding(get: { self.hoverDelay }, set: { self.hoverDelay = $0 })) {
-                    Text(L("Không chờ", "None")).tag(0.0)
-                    Text("0,08 s").tag(0.08)
-                    Text("0,2 s").tag(0.2)
-                    Text("0,4 s").tag(0.4)
+                Picker(L("Lúc thu gọn, notch phình ra", "When closed, the notch extends"),
+                       selection: Binding(get: { self.wingsBothSides }, set: { self.wingsBothSides = $0 })) {
+                    Text(L("Hai bên, cân giữa", "Both sides, centered")).tag(true)
+                    Text(L("Chỉ bên trái", "Left side only")).tag(false)
+                }
+                if wingsBothSides {
+                    Text(L("Bên phải notch là icon menu bar nên cánh phải sẽ che các icon sát notch. Giữ ⌘ rồi kéo icon nào cần thấy ra xa notch.",
+                           "Menu bar icons sit right of the notch, so the right side covers the ones closest to it. Hold ⌘ and drag any icon you need away from the notch."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Picker(L("Mở notch", "Open the notch"),
+                       selection: Binding(get: { self.openOnClick }, set: { self.openOnClick = $0 })) {
+                    Text(L("Khi rê chuột vào", "On hover")).tag(false)
+                    Text(L("Khi bấm vào", "On click")).tag(true)
+                }
+                if !openOnClick {
+                    Picker(L("Chờ trước khi mở", "Delay before opening"),
+                           selection: Binding(get: { self.hoverDelay }, set: { self.hoverDelay = $0 })) {
+                        Text(L("Không chờ", "None")).tag(0.0)
+                        Text("0,08 s").tag(0.08)
+                        Text("0,2 s").tag(0.2)
+                        Text("0,4 s").tag(0.4)
+                    }
                 }
             }
             Section(L("Kệ file", "File shelf")) {
@@ -410,12 +577,23 @@ final class NotchModule: ZModule {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section(L("Nhạc", "Music")) {
-                Text(L("Tên bài lấy từ Apple Music và Spotify, theo sự kiện nên không tốn CPU. Nút phát, chuyển bài gửi phím media nên dùng được với mọi trình phát (cần quyền Trợ năng).",
-                       "Track info comes from Apple Music and Spotify events, so it costs no CPU. Play and skip send media keys, so they work with any player (needs Accessibility)."))
+                Text(L("Đọc bài đang phát và ảnh bìa từ mọi trình phát, kể cả trình duyệt, qua một tiến trình nhỏ (khoảng 6 MB) chỉ chạy khi bật Notch. Nút phát, chuyển bài gửi thẳng tới trình phát đó.",
+                       "Reads what's playing, with album art, from any player including browsers, through a small process (about 6 MB) that only runs while Notch is on. Play and skip go straight to that player."))
+                    .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Lời bài hát (tab Lời)", "Lyrics (Lyrics tab)"),
+                       isOn: Binding(get: { self.lyricsEnabled }, set: { self.lyricsEnabled = $0 }))
+                Text(L("Lời lấy từ lrclib.net (miễn phí, mã nguồn mở). zMac chỉ gửi tên bài, ca sĩ, album và độ dài, và chỉ khi bạn mở tab Lời. Lời có mốc thời gian sẽ chạy theo nhạc.",
+                       "Lyrics come from lrclib.net (free and open source). zMac only sends the title, artist, album and length, and only when you open the Lyrics tab. Time-synced lyrics follow the music."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
     }
+}
+
+struct NotchHUD: Equatable {
+    var symbol: String
+    var text: String
+    var color: Color
 }
 
 // MARK: - Panel và view chứa
@@ -439,11 +617,23 @@ final class NotchPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// Gốc toạ độ ở góc trên: canvas SwiftUI luôn bám mép trên cửa sổ.
+final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
+}
+
 /// NSHostingView kèm một tracking area riêng để biết chuột vào / ra notch.
 final class NotchHostingView: NSHostingView<NotchRootView> {
     var onEnter: (() -> Void)?
     var onExit: (() -> Void)?
+    var onMouseDown: (() -> Void)?
     private var area: NSTrackingArea?
+
+    // Báo cú bấm rồi vẫn chuyển cho SwiftUI, để nút trong notch đang mở vẫn bấm được.
+    override func mouseDown(with event: NSEvent) {
+        onMouseDown?()
+        super.mouseDown(with: event)
+    }
 
     required init(rootView: NotchRootView) {
         super.init(rootView: rootView)
@@ -463,9 +653,10 @@ final class NotchHostingView: NSHostingView<NotchRootView> {
     /// để lần ra sau đó vẫn sinh mouseExited.
     func refreshTracking() {
         if let area { removeTrackingArea(area) }
-        var opts: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways]
+        // inVisibleRect: canvas rộng hơn cửa sổ, chỉ theo dõi phần thấy được.
+        var opts: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
         if let w = window, w.frame.contains(NSEvent.mouseLocation) { opts.insert(.assumeInside) }
-        let a = NSTrackingArea(rect: bounds, options: opts, owner: self, userInfo: nil)
+        let a = NSTrackingArea(rect: .zero, options: opts, owner: self, userInfo: nil)
         addTrackingArea(a)
         area = a
     }
@@ -481,3 +672,19 @@ final class NotchHostingView: NSHostingView<NotchRootView> {
         if event.trackingArea === area { onExit?() }
     }
 }
+
+#if DEBUG
+extension NotchModule {
+    /// Chỉ cho `--render-ui`: dựng trạng thái notch với một bài mẫu, không mở panel thật.
+    func preview(open: Bool, track: NowPlayingTrack?, hud: NotchHUD?) {
+        notchWidth = 185
+        notchHeight = 32
+        self.track = track
+        self.hud = hud
+        self.open = open
+        contentOpen = open
+        shapeSize = open ? expandedSize : collapsedSize
+        shapeOffset = open ? 0 : collapsedOffset
+    }
+}
+#endif

@@ -45,7 +45,13 @@ struct KeyCombo: Codable, Hashable {
         return m
     }
 
+    /// F1…F20. Mã phím không liên tục và ngược thứ tự (kVK_F1 = 0x7A, kVK_F20 = 0x5A):
+    /// viết `kVK_F1...kVK_F20` là khoảng có cận dưới lớn hơn cận trên, Swift dừng app.
+    static let functionKeys = [kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7, kVK_F8, kVK_F9, kVK_F10,
+                               kVK_F11, kVK_F12, kVK_F13, kVK_F14, kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20]
+
     static func keyName(_ code: UInt32) -> String {
+        if let i = functionKeys.firstIndex(of: Int(code)) { return "F\(i + 1)" }
         switch Int(code) {
         case kVK_LeftArrow: return "←"
         case kVK_RightArrow: return "→"
@@ -61,11 +67,6 @@ struct KeyCombo: Codable, Hashable {
         case kVK_End: return "↘"
         case kVK_PageUp: return "⇞"
         case kVK_PageDown: return "⇟"
-        case kVK_F1...kVK_F20:
-            let fkeys = [kVK_F1, kVK_F2, kVK_F3, kVK_F4, kVK_F5, kVK_F6, kVK_F7, kVK_F8, kVK_F9, kVK_F10,
-                         kVK_F11, kVK_F12, kVK_F13, kVK_F14, kVK_F15, kVK_F16, kVK_F17, kVK_F18, kVK_F19, kVK_F20]
-            if let i = fkeys.firstIndex(of: Int(code)) { return "F\(i + 1)" }
-            return "F?"
         default: return translate(code)
         }
     }
@@ -220,7 +221,7 @@ struct ShortcutField: View {
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
             let mods = KeyCombo.carbonMods(e.modifierFlags)
             if Int(e.keyCode) == kVK_Escape && mods == 0 { stop(); return nil }
-            let isF = (kVK_F1...kVK_F20).contains(Int(e.keyCode))
+            let isF = KeyCombo.functionKeys.contains(Int(e.keyCode))
             guard mods != 0 || isF else { NSSound.beep(); return nil }
             save(KeyCombo(Int(e.keyCode), mods))
             stop()

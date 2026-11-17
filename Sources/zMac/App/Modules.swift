@@ -44,6 +44,8 @@ final class ModuleManager {
         BatteryModule.self,
         AudioModule.self,
         NotchModule.self,
+        ClaudeModule.self,
+        PetModule.self,
         KeepAwakeModule.self,
     ]
 
@@ -76,7 +78,8 @@ final class ModuleManager {
         "display": ["BetterDisplay", "MonitorControl", "HyperMac"],
         "battery": ["AlDente", "HyperMac"],
         "audio": ["FineTune", "SoundSource"],
-        "notch": ["NotchNook", "Notch", "Alcove", "boring.notch"],
+        "notch": ["NotchNook", "Notch", "Alcove", "boring.notch", "Roost"],
+        "claude": ["Roost"],
     ]
 
     /// App xung đột đang chạy (đọc khi mở trang Cài đặt, không theo dõi nền).
@@ -129,6 +132,15 @@ enum Diagnostics {
     /// Module đăng ký thêm thông tin chẩn đoán ở đây (pin, màn hình, âm thanh, nhạc đang phát).
     static var diagnosticHooks: [@MainActor () -> Void] {
         [SwitcherModule.diagnose, DisplayModule.diagnose, BatteryModule.diagnose, AudioModule.diagnose,
-         NowPlayingAdapter.diagnose]
+         NowPlayingAdapter.diagnose, ClaudeModule.diagnose]
     }
 }
+
+#if DEBUG
+extension ModuleManager {
+    /// Chỉ cho `--render-ui`: tạo module mà không start() (không phím tắt, không listener, không cửa sổ).
+    func attachForPreview() {
+        for t in types where t.unavailableReason == nil { running[t.id] = t.init() }
+    }
+}
+#endif
