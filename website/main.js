@@ -701,7 +701,7 @@
       n += 1;
       line('⏺ ' + r.call);
       // Đã "Luôn cho phép" thì Claude Code không hỏi lại công cụ đó.
-      if (always.has(r.tool)) { for (const o of r.out) line('  ' + o, 'dim'); return; }
+      if (always.has(r.tool)) { for (const o of r.out) line('  ' + o, 'out'); return; }
       pending = r;
       line(T('  Đang chờ duyệt trên notch…', '  Waiting for approval on the notch…'), 'wait');
       $('#cl-title').textContent = T(r.title[0], r.title[1]);
@@ -718,7 +718,7 @@
       } else {
         if (kind === 'always') always.add(r.tool);
         line(kind === 'always' ? T(`  ✓ Luôn cho phép ${r.tool}`, `  ✓ Always allow ${r.tool}`) : T('  ✓ Đã cho phép', '  ✓ Allowed'), 'ok');
-        for (const o of r.out) line('  ' + o, 'dim');
+        for (const o of r.out) line('  ' + o, 'out');
       }
       setCard(false);
     }
