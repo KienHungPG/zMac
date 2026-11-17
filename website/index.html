@@ -469,12 +469,13 @@
   <div class="wrap priv">
     <div>
       <p class="eyebrow" data-en="Privacy">Riêng tư</p>
-      <h2 data-en="No network.<br>No account.">Không mạng.<br>Không tài khoản.</h2>
-      <p class="sub" data-en="zMac never connects to the internet: no analytics, no tracking, no update checks. Everything stays on your Mac, and the source is open so you can check for yourself.">zMac không kết nối internet: không gửi số liệu, không theo dõi, không kiểm tra cập nhật. Mọi thứ nằm trên máy bạn, và mã nguồn mở để bạn tự kiểm.</p>
+      <h2 data-en="Offline by default.<br>No account.">Mặc định không mạng.<br>Không tài khoản.</h2>
+      <p class="sub" data-en="zMac sends no analytics and does no tracking. Everything stays on your Mac, and the source is open so you can check for yourself.">zMac không gửi số liệu, không theo dõi. Mọi thứ nằm trên máy bạn, và mã nguồn mở để bạn tự kiểm.</p>
       <ul class="points">
         <li><span class="tile c-b"><svg class="i"><use href="#i-keyboard"/></svg></span><p data-en="<b>Your keystrokes stay yours.</b> zMac registers shortcuts with the system instead of watching the keyboard."><b>Phím bạn gõ không đi qua zMac.</b> Phím tắt đăng ký với hệ thống, zMac không theo dõi bàn phím.</p></li>
         <li><span class="tile c-p"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>Clipboard history stays local.</b> It lives in a folder on your Mac and skips anything password managers mark as secret."><b>Lịch sử clipboard chỉ ở trên máy.</b> Lưu trong một thư mục trên Mac và bỏ qua những gì trình quản lý mật khẩu đánh dấu là bí mật.</p></li>
         <li><span class="tile c-g"><svg class="i"><use href="#i-sound"/></svg></span><p data-en="<b>Audio is never recorded.</b> For per-app volume, sound only passes through memory. Nothing is saved."><b>Âm thanh không bị ghi lại.</b> Khi chỉnh âm lượng từng app, âm thanh chỉ đi qua bộ nhớ, không lưu lại gì.</p></li>
+        <li><span class="tile c-o"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>The network only when you turn it on.</b> Lyrics and auto-update are both off by default. Lyrics send the title, artist, album and length to lrclib.net when you open the Lyrics tab. Auto-update asks github.com at most once a day and only installs builds with a valid signature."><b>Chỉ dùng mạng khi bạn bật.</b> Lời bài hát và tự cập nhật đều tắt sẵn. Lời bài hát gửi tên bài, ca sĩ, album, độ dài tới lrclib.net khi bạn mở tab Lời. Tự cập nhật hỏi github.com tối đa mỗi ngày một lần và chỉ cài bản có chữ ký đúng.</p></li>
       </ul>
     </div>
     <div class="card perm">
@@ -493,6 +494,7 @@
         <dt data-en="Settings">Cài đặt</dt><dd><code>defaults read com.zmac.app</code></dd>
         <dt data-en="Clipboard history">Lịch sử clipboard</dt><dd><code>~/Library/Application Support/zMac/Clipboard/</code></dd>
         <dt data-en="Charge policy">Chính sách sạc</dt><dd><code>/Library/Application Support/zMac/battery-policy.json</code></dd>
+        <dt data-en="Claude Code hook">Hook Claude Code</dt><dd><code>~/.claude/settings.json</code> <span data-en="(only when you click Connect)">(chỉ khi bạn bấm Kết nối)</span></dd>
       </dl>
     </div>
   </div>
