@@ -6,26 +6,48 @@
       "date": "2026-11-17",
       "anchor": "020",
       "added": [
-        { "vi": "**Claude Code trên notch**: duyệt quyền, trả lời câu hỏi và duyệt kế hoạch của Claude ngay trên notch, kèm hạn mức 5 giờ và 7 ngày.",
-          "en": "**Claude Code on the notch**: approve permissions, answer Claude's questions and approve its plans right there, with your 5-hour and 7-day limits." },
-        { "vi": "**Lời bài hát**: bấm nút Lời trong trình phát, lời chạy theo nhạc. Lấy từ lrclib.net, tắt sẵn.",
-          "en": "**Lyrics**: press the lyrics button in the player and the words follow the music. From lrclib.net, off by default." },
-        { "vi": "**Lịch**: tuần này và cuộc họp sắp tới trong notch, bấm một lần vào Meet, Zoom, Teams.",
-          "en": "**Calendar**: this week and your next meeting in the notch, one click to join Meet, Zoom or Teams." },
-        { "vi": "**Thú cưng**: mèo, cún, slime hay gà con pixel ngồi cạnh notch.",
-          "en": "**Pets**: a pixel cat, pup, slime or chick sits beside the notch." },
-        { "vi": "**Âm lượng, độ sáng** hiện trên notch thay HUD của macOS. Cảnh báo pin yếu ở 20%, 10%, 5%.",
-          "en": "**Volume and brightness** show on the notch instead of the macOS HUD. Low battery warnings at 20%, 10% and 5%." },
-        { "vi": "**Cài bằng Homebrew** và tự cập nhật từ GitHub có kiểm chữ ký (tắt sẵn).",
-          "en": "**Homebrew install**, plus signature-checked updates from GitHub (off by default)." }
+        {
+          "vi": "**Claude Code trên notch**: duyệt quyền, trả lời câu hỏi và duyệt kế hoạch của Claude ngay trên notch, kèm hạn mức 5 giờ và 7 ngày. Trả lời trong VS Code hay terminal thì thẻ tự biến mất.",
+          "en": "**Claude Code on the notch**: approve permissions, answer Claude's questions and approve its plans right there, with your 5-hour and 7-day limits. Answer in VS Code or the terminal and the card goes away by itself."
+        },
+        {
+          "vi": "**Trình phát nhạc mới**: nhạc từ mọi trình phát, ảnh bìa lớn kèm icon app, nền theo màu bài, kéo thanh tiến độ để tua.",
+          "en": "**A new music player**: music from any player, big album art with the playing app's icon, colors from the song, and drag to seek."
+        },
+        {
+          "vi": "**Lời bài hát**: bấm nút Lời trong trình phát, lời chạy theo nhạc. Lấy từ lrclib.net, tắt sẵn.",
+          "en": "**Lyrics**: press the lyrics button in the player and the words follow the music. From lrclib.net, off by default."
+        },
+        {
+          "vi": "**Lịch**: tuần này và cuộc họp sắp tới trong notch, bấm một lần vào Meet, Zoom, Teams.",
+          "en": "**Calendar**: this week and your next meeting in the notch, one click to join Meet, Zoom or Teams."
+        },
+        {
+          "vi": "**Thú cưng**: mèo, cún, slime hay gà con pixel ngồi cạnh notch.",
+          "en": "**Pets**: a pixel cat, pup, slime or chick sits beside the notch."
+        },
+        {
+          "vi": "**Âm lượng, độ sáng** hiện trên notch thay HUD của macOS. Cảnh báo pin yếu ở 20%, 10%, 5%.",
+          "en": "**Volume and brightness** show on the notch instead of the macOS HUD. Low battery warnings at 20%, 10% and 5%."
+        },
+        {
+          "vi": "**Cài bằng Homebrew** và tự cập nhật từ GitHub có kiểm chữ ký (tắt sẵn).",
+          "en": "**Homebrew install**, plus signature-checked updates from GitHub (off by default)."
+        }
       ],
       "fixed": [
-        { "vi": "Hạn mức Claude hiện nhầm số của tài khoản cũ ngay sau khi đổi tài khoản.",
-          "en": "Claude limits showed the previous account's numbers right after switching accounts." },
-        { "vi": "Mở Cài đặt làm zMac thoát.",
-          "en": "Opening Settings made zMac quit." },
-        { "vi": "Sóng nhạc trên notch tốn khoảng 9% CPU, giờ còn 0,2%.",
-          "en": "The notch music bars used about 9% CPU; now 0.2%." }
+        {
+          "vi": "Hạn mức Claude hiện nhầm số của tài khoản cũ ngay sau khi đổi tài khoản.",
+          "en": "Claude limits showed the previous account's numbers right after switching accounts."
+        },
+        {
+          "vi": "Mở Cài đặt làm zMac thoát.",
+          "en": "Opening Settings made zMac quit."
+        },
+        {
+          "vi": "Sóng nhạc trên notch tốn khoảng 9% CPU, giờ còn 0,2%.",
+          "en": "The notch music bars used about 9% CPU; now 0.2%."
+        }
       ]
     },
     {
@@ -33,8 +55,10 @@
       "date": "2026-11-17",
       "anchor": "010",
       "added": [
-        { "vi": "**Bản đầu tiên**: chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app, notch và giữ máy thức trong một tiến trình.",
-          "en": "**First release**: window switching, snapping, clipboard history, display brightness, charge limiting, per-app volume, the notch and keep awake in one process." }
+        {
+          "vi": "**Bản đầu tiên**: chuyển cửa sổ, chia cửa sổ, lịch sử clipboard, độ sáng màn hình, giới hạn sạc, âm lượng từng app, notch và giữ máy thức trong một tiến trình.",
+          "en": "**First release**: window switching, snapping, clipboard history, display brightness, charge limiting, per-app volume, the notch and keep awake in one process."
+        }
       ],
       "fixed": []
     }

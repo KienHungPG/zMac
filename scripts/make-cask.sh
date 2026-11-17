@@ -24,7 +24,7 @@ cask "zmac" do
   url "https://github.com/KienHungPG/zMac/releases/download/v#{version}/zMac.dmg"
   name "zMac"
   desc "Window switcher, snapping, clipboard history, notch and more in one menu bar app"
-  homepage "https://zmac-website.vercel.app/"
+  homepage "https://zmac.vercel.app/"
 
   livecheck do
     url :url

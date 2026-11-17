@@ -7,8 +7,8 @@
 **Một app menu bar thay cho bảy app trên macOS.**<br>
 Nhẹ, miễn phí, mã nguồn mở.
 
-[![Tải zMac](https://img.shields.io/badge/T%E1%BA%A3i%20v%E1%BB%81-zMac.dmg-FF8052?style=for-the-badge&logo=apple&logoColor=white)](https://zmac-website.vercel.app/#install)
-[![Trang web](https://img.shields.io/badge/Trang%20web-zmac--website-49ABE1?style=for-the-badge&logo=safari&logoColor=white)](https://zmac-website.vercel.app)
+[![Tải zMac](https://img.shields.io/badge/T%E1%BA%A3i%20v%E1%BB%81-zMac.dmg-FF8052?style=for-the-badge&logo=apple&logoColor=white)](https://zmac.vercel.app/#install)
+[![Trang web](https://img.shields.io/badge/Trang%20web-zmac.vercel.app-49ABE1?style=for-the-badge&logo=safari&logoColor=white)](https://zmac.vercel.app)
 
 ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-282b59?logo=apple)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-282b59)
@@ -36,7 +36,7 @@ Nhẹ, miễn phí, mã nguồn mở.
 | 🔊 | **Âm thanh** | FineTune | Âm lượng và loa riêng từng app, đổi thiết bị vào ra |
 | 🎵 | **Notch** | NotchNook | Nhạc đang phát với ảnh bìa (mọi trình phát, kể cả trình duyệt), lời bài hát, kệ file; âm lượng và độ sáng thay HUD macOS; báo pin khi cắm sạc, cảnh báo pin yếu |
 | 📅 | **Lịch** | Itsycal | Tuần này ngay trong notch, chấm ngày có sự kiện, cuộc họp sắp tới kèm nút vào Meet / Zoom / Teams |
-| ✳️ | **Claude Code** | Roost | Claude xin quyền thì notch mở ra để Cho phép / Từ chối; Claude hỏi lại hay xin duyệt kế hoạch thì chọn ngay trên notch; hạn mức 5 giờ / 7 ngày |
+| ✳️ | **Claude Code** | | Claude xin quyền thì notch mở ra để Cho phép / Từ chối; Claude hỏi lại hay xin duyệt kế hoạch thì chọn ngay trên notch; hạn mức 5 giờ / 7 ngày |
 | 🐾 | **Thú cưng** | | Mèo, cún, slime hay gà con pixel sống ở notch: cho ăn, vuốt ve, chơi để lên cấp |
 | ☕ | **Giữ máy thức** | Amphetamine | Không cho máy ngủ trong khoảng thời gian bạn chọn |
 
@@ -127,7 +127,7 @@ brew install --cask kienhungpg/tap/zmac
 
 Cập nhật sau này bằng `brew upgrade --cask zmac`. Hoặc cài tay:
 
-1. Tải `zMac.dmg` ở [trang web](https://zmac-website.vercel.app/#install), kéo zMac vào Applications.
+1. Tải `zMac.dmg` ở [trang web](https://zmac.vercel.app/#install), kéo zMac vào Applications.
 2. zMac chưa được Apple công chứng (notarize), nên lần đầu mở macOS sẽ chặn. Vào **Cài đặt hệ thống → Quyền riêng tư &
    Bảo mật**, kéo xuống và bấm **Vẫn mở**. Chỉ cần làm một lần.
 3. Cấp quyền **Trợ năng** khi zMac hỏi.

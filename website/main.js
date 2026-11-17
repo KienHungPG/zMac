@@ -264,7 +264,7 @@
     const items = $$('.hud-it', el);
     const title = $('#sw-title');
     const names = [
-      ['Trình duyệt — zmac-website.vercel.app', 'Browser — zmac-website.vercel.app'],
+      ['Trình duyệt — zmac.vercel.app', 'Browser — zmac.vercel.app'],
       ['Ghi chú — Việc tuần này', 'Notes — This week'],
       ['Terminal — ~/zMac', 'Terminal — ~/zMac'],
       ['Thiết kế — Trang tải', 'Design — Download page'],
@@ -373,7 +373,7 @@
     const ph = $('.ph', out);
     const ITEMS = [
       { k: 'text', t: ['git push origin main', 'git push origin main'], pin: true },
-      { k: 'link', t: ['https://zmac-website.vercel.app', 'https://zmac-website.vercel.app'] },
+      { k: 'link', t: ['https://zmac.vercel.app', 'https://zmac.vercel.app'] },
       { k: 'color', t: ['#FF8052', '#FF8052'] },
       { k: 'text', t: ['Họp thiết kế lúc 15:00, phòng 2', 'Design review at 3 pm, room 2'] },
       { k: 'image', t: ['Ảnh chụp màn hình 08.30', 'Screenshot 08.30'] },
