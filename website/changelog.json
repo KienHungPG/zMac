@@ -2,6 +2,59 @@
   "notes": "https://github.com/KienHungPG/zMac/blob/main/CHANGELOG.md",
   "releases": [
     {
+      "version": "0.3.0",
+      "date": "2026-11-19",
+      "anchor": "030",
+      "added": [
+        {
+          "vi": "**Tự cập nhật**: từ bản này zMac tự cập nhật được. Bật trong Cài đặt → Giới thiệu; zMac chỉ cài bản có chữ ký đúng khoá của zMac. Bản 0.2.0 trở về trước cần cài tay bản này một lần.",
+          "en": "**Auto-update**: from this version zMac can update itself. Turn it on in Settings → About; zMac only installs releases signed with its own key. 0.2.0 and earlier need this version installed by hand once."
+        },
+        {
+          "vi": "**Trang Giới thiệu**: phiên bản, cập nhật, hướng dẫn cài đặt, mã nguồn, báo lỗi, giấy phép.",
+          "en": "**About page**: version, updates, setup guide, source code, bug reports and licenses."
+        },
+        {
+          "vi": "**Ba kiểu ⌥⇥**: Ảnh xem trước, Biểu tượng app (gọn như ⌘⇥), Tiêu đề (danh sách). Chỉ kiểu Ảnh xem trước chụp màn hình.",
+          "en": "**Three ⌥⇥ styles**: Thumbnails, App Icons (compact, like ⌘⇥) and Titles (a list). Only Thumbnails captures the screen."
+        },
+        {
+          "vi": "**⌥⇥ ở mọi Space**: thấy cả cửa sổ ở Space khác và app toàn màn hình, chọn là sang đúng Space đó.",
+          "en": "**⌥⇥ across Spaces**: windows on other Spaces and full-screen apps show up too, and picking one takes you to its Space."
+        },
+        {
+          "vi": "**Pin thiết bị**: AirPods, Beats, tai nghe Bluetooth, chuột và bàn phím Logitech, tay cầm chơi game. Pin hiện trên notch khi thiết bị kết nối, kèm cảnh báo khi sắp hết.",
+          "en": "**Device battery**: AirPods, Beats, Bluetooth headphones, Logitech mice and keyboards, game controllers. Battery shows on the notch when they connect, with a warning when they run low."
+        },
+        {
+          "vi": "**Trình phát trên màn hình khoá** (tắt sẵn): widget gọn hoặc trình phát đầy đủ kèm lời, ngay dưới đồng hồ.",
+          "en": "**Player on the lock screen** (off by default): a compact widget or a full player with lyrics, right under the clock."
+        },
+        {
+          "vi": "**Notch hiện app đang phát âm thanh**: họp Meet, Zoom hay video không báo \"Đang phát\" vẫn có icon app kèm sóng.",
+          "en": "**Apps playing sound on the notch**: Meet calls, Zoom or videos that don't report \"Now Playing\" still show the app icon with the bars."
+        },
+        {
+          "vi": "**Chọn lịch**: bật, tắt từng lịch theo tài khoản; thêm lịch Google qua Tài khoản internet của macOS.",
+          "en": "**Pick your calendars**: turn calendars on or off per account, and add Google Calendar through macOS Internet Accounts."
+        },
+        {
+          "vi": "**Hạn mức Claude lấy thẳng từ Anthropic** (tắt sẵn), số cũ hơn 30 phút hiện mờ. Hook Claude Code tự nối lại khi bị cũ hay bị xoá.",
+          "en": "**Claude limits straight from Anthropic** (off by default); numbers older than 30 minutes fade. The Claude Code hook reconnects itself if it goes stale or gets removed."
+        }
+      ],
+      "fixed": [
+        {
+          "vi": "Tab trình duyệt đã dừng giữ chỗ trên notch trong lúc Spotify hay Nhạc đang phát: giờ notch hiện đúng bài đang phát, nút phát và chuyển bài tới đúng app. Ảnh bìa Spotify lấy từ mạng nếu bạn bật.",
+          "en": "A paused browser tab kept its place on the notch while Spotify or Music played: the notch now shows what's really playing, and play and skip go to the right app. Spotify album art can come from the network if you turn it on."
+        },
+        {
+          "vi": "Tắt tiếng mà HUD âm lượng vẫn hiện mức cũ: giờ hiện 0%.",
+          "en": "Muting kept showing the old level on the volume HUD; it now shows 0%."
+        }
+      ]
+    },
+    {
       "version": "0.2.0",
       "date": "2026-11-17",
       "anchor": "020",

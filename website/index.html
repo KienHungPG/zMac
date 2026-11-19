@@ -572,7 +572,7 @@
         <li><span class="tile c-b"><svg class="i"><use href="#i-keyboard"/></svg></span><p data-en="<b>Your keystrokes stay yours.</b> zMac registers shortcuts with the system instead of watching the keyboard. Only the volume and brightness keys pass through zMac, so it can show them on the notch."><b>Phím bạn gõ không đi qua zMac.</b> Phím tắt đăng ký với hệ thống, zMac không theo dõi bàn phím. Chỉ phím âm lượng, độ sáng đi qua zMac để hiện trên notch.</p></li>
         <li><span class="tile c-p"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>Clipboard history stays local.</b> It lives in a folder on your Mac and skips anything password managers mark as secret."><b>Lịch sử clipboard chỉ ở trên máy.</b> Lưu trong một thư mục trên Mac và bỏ qua những gì trình quản lý mật khẩu đánh dấu là bí mật.</p></li>
         <li><span class="tile c-g"><svg class="i"><use href="#i-sound"/></svg></span><p data-en="<b>Audio is never recorded.</b> For per-app volume, sound only passes through memory. Nothing is saved."><b>Âm thanh không bị ghi lại.</b> Khi chỉnh âm lượng từng app, âm thanh chỉ đi qua bộ nhớ, không lưu lại gì.</p></li>
-        <li><span class="tile c-o"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>The network only when you turn it on.</b> Lyrics and auto-update are both off by default. Lyrics send the title, artist, album and length to lrclib.net while lyrics are showing. Auto-update asks github.com at most once a day and only installs builds with a valid signature. Your calendar is read on your Mac and never sent anywhere."><b>Chỉ dùng mạng khi bạn bật.</b> Lời bài hát và tự cập nhật đều tắt sẵn. Lời bài hát gửi tên bài, ca sĩ, album, độ dài tới lrclib.net khi đang xem lời. Tự cập nhật hỏi github.com tối đa mỗi ngày một lần và chỉ cài bản có chữ ký đúng. Lịch chỉ đọc trên máy, không gửi đi đâu.</p></li>
+        <li><span class="tile c-o"><svg class="i"><use href="#i-lock"/></svg></span><p data-en="<b>The network only when you turn it on.</b> Lyrics, live Claude limits, Spotify album art and auto-update are all off by default. Lyrics send the title, artist, album and length to lrclib.net while lyrics are showing. Live Claude limits read Claude Code's sign-in from your Keychain and send it only to api.anthropic.com. Spotify album art downloads the cover from Spotify's image server only when macOS has no art to give. Auto-update asks github.com at most once a day and only installs builds with a valid signature. Your calendar is read on your Mac and never sent anywhere."><b>Chỉ dùng mạng khi bạn bật.</b> Lời bài hát, hạn mức Claude trực tiếp, ảnh bìa Spotify và tự cập nhật đều tắt sẵn. Lời bài hát gửi tên bài, ca sĩ, album, độ dài tới lrclib.net khi đang xem lời. Hạn mức Claude trực tiếp đọc đăng nhập Claude Code trong Keychain và chỉ gửi nó tới api.anthropic.com. Ảnh bìa Spotify chỉ tải ảnh từ máy chủ ảnh của Spotify khi macOS không đưa ảnh. Tự cập nhật hỏi github.com tối đa mỗi ngày một lần và chỉ cài bản có chữ ký đúng. Lịch chỉ đọc trên máy, không gửi đi đâu.</p></li>
       </ul>
     </div>
     <div class="card perm">
@@ -582,8 +582,10 @@
         <tbody>
           <tr><th scope="row" data-en="Accessibility">Trợ năng</th><td data-en="Window switching and snapping, pasting from the clipboard, media buttons, volume and brightness keys on the notch">Chuyển và chia cửa sổ, dán từ clipboard, nút điều khiển nhạc, phím âm lượng và độ sáng trên notch</td></tr>
           <tr><th scope="row" data-en="Calendars">Lịch</th><td data-en="Your week and next meeting in the notch. Read only, asked when you click Allow.">Tuần này và cuộc họp sắp tới trong notch. Chỉ đọc, chỉ hỏi khi bạn bấm Cho phép.</td></tr>
+          <tr><th scope="row" data-en="Bluetooth">Bluetooth</th><td data-en="Battery of paired AirPods, Beats and Bluetooth headphones. Read only, never scans, asked when you click Allow.">Pin AirPods, Beats, tai nghe Bluetooth đã ghép đôi. Chỉ đọc, không quét, chỉ hỏi khi bạn bấm Cho phép.</td></tr>
+          <tr><th scope="row" data-en="Automation (Spotify, Music)">Tự động hoá (Spotify, Nhạc)</th><td data-en="Play and skip go straight to Spotify or Music when macOS is still holding another player, like a paused browser tab.">Gửi lệnh phát, chuyển bài thẳng tới Spotify hay Nhạc khi macOS còn giữ trình phát khác, ví dụ tab trình duyệt đã dừng.</td></tr>
           <tr><th scope="row" data-en="System audio recording">Ghi âm thanh hệ thống</th><td data-en="Per-app volume. Asked the first time you change an app's volume.">Âm lượng từng app. Chỉ hỏi lần đầu bạn chỉnh âm lượng một app.</td></tr>
-          <tr><th scope="row" data-en="Screen recording">Ghi màn hình</th><td data-en="Window previews in ⌥⇥. Off by default.">Ảnh xem trước trong ⌥⇥. Mặc định tắt.</td></tr>
+          <tr><th scope="row" data-en="Screen recording">Ghi màn hình</th><td data-en="The Thumbnails style in ⌥⇥, and titles of windows on other Spaces. Off by default.">Kiểu Ảnh xem trước của ⌥⇥, tiêu đề cửa sổ ở Space khác. Mặc định tắt.</td></tr>
           <tr><th scope="row" data-en="Admin password, once">Mật khẩu admin, một lần</th><td data-en="Installing the charge limit daemon. Only if you use charge limiting.">Cài daemon giới hạn sạc. Chỉ khi bạn dùng tính năng này.</td></tr>
         </tbody>
       </table>
@@ -605,11 +607,10 @@
       <div class="card limits">
         <h3 data-en="Not there yet">Chưa làm được</h3>
         <ul>
-          <li data-en="⌥⇥ only sees windows on the current Space, plus minimized windows and hidden apps.">⌥⇥ chỉ thấy cửa sổ ở Space hiện tại, cộng cửa sổ thu nhỏ và app đang ẩn.</li>
+          <li data-en="⌥⇥ shows windows on other Spaces, but one zMac hasn't met yet has no title without Screen Recording access.">⌥⇥ thấy cả cửa sổ ở Space khác, nhưng cửa sổ zMac chưa gặp lần nào thì không có tiêu đề nếu chưa cấp quyền Ghi màn hình.</li>
           <li data-en="No virtual displays or HiDPI unlock for 1440p screens yet.">Chưa có màn hình ảo, chưa mở khoá HiDPI cho màn 1440p.</li>
           <li data-en="No master volume for HDMI speakers that lack hardware volume yet.">Chưa chỉnh được âm lượng tổng cho loa HDMI không có âm lượng phần cứng.</li>
           <li data-en="No per-app EQ yet.">Chưa có EQ cho từng app.</li>
-          <li data-en="No automatic updates yet.">Chưa tự cập nhật.</li>
         </ul>
       </div>
     </div>

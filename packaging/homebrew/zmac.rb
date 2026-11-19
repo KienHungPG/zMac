@@ -1,7 +1,7 @@
 # Cask Homebrew của zMac. Sinh bởi scripts/make-cask.sh trong repo KienHungPG/zMac, đừng sửa tay.
 cask "zmac" do
-  version "0.2.0"
-  sha256 "140481f5173668166f0d31f297488ce2a96585144049d296da95f3485015a592"
+  version "0.3.0"
+  sha256 "0d4c84823d889032774b281b225f47ba0eec83b09323870cf7863f3418207d36"
 
   url "https://github.com/KienHungPG/zMac/releases/download/v#{version}/zMac.dmg"
   name "zMac"
