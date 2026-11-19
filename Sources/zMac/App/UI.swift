@@ -236,27 +236,40 @@ struct SettingsRoot: View {
             }
             .padding(.horizontal, 8).padding(.top, 40).padding(.bottom, 12)
 
-            row("general", L("Chung", "General"), "gearshape.fill", ZTheme.slate, running: nil)
-            row("performance", L("Hiệu năng", "Performance"), "gauge.with.dots.needle.67percent", ZTheme.slate, running: nil)
+            // Danh sách cuộn được: nhiều module thì cửa sổ thấp vẫn thấy hết.
+            ScrollView {
+                VStack(alignment: .leading, spacing: 2) {
+                    row("general", L("Chung", "General"), "gearshape.fill", ZTheme.slate, running: nil)
+                    row("performance", L("Hiệu năng", "Performance"), "gauge.with.dots.needle.67percent", ZTheme.slate, running: nil)
 
-            Text(L("Tính năng", "Features"))
-                .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.4))
-                .padding(.horizontal, 8).padding(.top, 16).padding(.bottom, 4)
-            ForEach(manager.types.map { ModuleRef($0) }) { ref in
-                row(ref.id, ref.type.name, ref.type.symbol, ZTheme.hue(ref.id),
-                    running: ref.type.unavailableReason != nil ? nil : manager.running[ref.id] != nil)
-                    .opacity(ref.type.unavailableReason == nil ? 1 : 0.45)
+                    groupTitle(L("Tính năng", "Features"))
+                    ForEach(manager.types.map { ModuleRef($0) }) { ref in
+                        row(ref.id, ref.type.name, ref.type.symbol, ZTheme.hue(ref.id),
+                            running: ref.type.unavailableReason != nil ? nil : manager.running[ref.id] != nil)
+                            .opacity(ref.type.unavailableReason == nil ? 1 : 0.45)
+                    }
+
+                    groupTitle(L("Khác", "More"))
+                    row("about", L("Giới thiệu", "About"), "info", ZTheme.slate, running: nil)
+                }
             }
-            Spacer(minLength: 12)
+            .scrollIndicators(.never)
+            .frame(maxHeight: .infinity, alignment: .top)
             Text(L("\(manager.running.count)/\(manager.types.count) tính năng đang chạy",
                    "\(manager.running.count)/\(manager.types.count) features running"))
                 .font(.system(size: 11)).foregroundStyle(.white.opacity(0.4))
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 8).padding(.top, 10)
         }
         .padding(.horizontal, 10).padding(.bottom, 16)
         .frame(width: 208)
         .frame(maxHeight: .infinity)
         .background(Color.black.opacity(0.2))
+    }
+
+    private func groupTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white.opacity(0.4))
+            .padding(.horizontal, 8).padding(.top, 16).padding(.bottom, 4)
     }
 
     private func row(_ id: String, _ title: String, _ symbol: String, _ hue: ZTheme.Hue, running: Bool?) -> some View {
@@ -284,6 +297,7 @@ struct SettingsRoot: View {
         switch selection {
         case "general": GeneralPane()
         case "performance": PerformancePane()
+        case "about": AboutPane()
         case let id:
             if let t = manager.types.first(where: { $0.id == id }) { ModulePane(type: t) } else { GeneralPane() }
         }
@@ -437,6 +451,62 @@ func moduleForm<Content: View>(@ViewBuilder _ content: () -> Content) -> AnyView
     AnyView(Form { content() }.formStyle(.grouped).scrollContentBackground(.hidden).zCompactForm())
 }
 
+/// Hàng ô chọn có hình minh hoạ (kiểu HUD ⌥⇥, trình phát trên màn hình khoá): hình ở trên, tên và mô tả ở dưới.
+/// Ô đang chọn có viền theo màu module và dấu tích. Hình vẽ bằng hình khối, không dùng ảnh.
+struct ZChoiceTiles<Value: Hashable & Identifiable, Preview: View>: View {
+    let options: [Value]
+    @Binding var selection: Value
+    var hue: ZTheme.Hue = ZTheme.blue
+    let title: (Value) -> String
+    var detail: ((Value) -> String)?
+    @ViewBuilder let preview: (Value) -> Preview
+
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ForEach(options) { o in
+                let on = o == selection
+                let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                Button { selection = o } label: {
+                    VStack(spacing: 0) {
+                        preview(o).frame(maxWidth: .infinity).frame(height: 100).clipped()
+                        VStack(spacing: 2) {
+                            Text(title(o))
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundStyle(on ? hue.light : .primary)
+                            if let detail {
+                                Text(detail(o)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                        }
+                        .padding(.vertical, 9).padding(.horizontal, 6)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white.opacity(0.04))
+                    }
+                    .clipShape(shape)
+                    .overlay(shape.strokeBorder(on ? hue.light : .white.opacity(0.12), lineWidth: on ? 2 : 1))
+                    .overlay(alignment: .topTrailing) {
+                        if on {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .heavy))
+                                .foregroundStyle(.white)
+                                .frame(width: 18, height: 18)
+                                .background(Circle().fill(hue.gradient))
+                                .padding(7)
+                        }
+                    }
+                    .contentShape(shape)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(title(o))
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .opacity(enabled ? 1 : 0.5)
+        .padding(.vertical, 4)
+    }
+}
+
 // MARK: - Trang Chung
 
 struct GeneralPane: View {
@@ -493,7 +563,6 @@ struct GeneralPane: View {
                 }
                 .onChange(of: language) { _, v in LangState.shared.apply(v) }
             }
-            UpdateSection()
             Section(L("Máy này", "This Mac")) {
                 LabeledContent(L("Kiểu máy", "Model"), value: Hardware.model)
                 LabeledContent("Chip", value: Hardware.chip)

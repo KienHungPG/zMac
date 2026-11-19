@@ -3,6 +3,31 @@
 Trang web hiện cùng nội dung này ở mục [Phiên bản](https://zmac.vercel.app/#changelog)
 (dữ liệu ở `website/changelog.json`, sửa cả hai khi ra bản mới).
 
+## 0.3.0
+
+19/11/2026
+
+**Thêm**
+
+- **Tự cập nhật:** từ bản này zMac tự cập nhật được. Bật trong Cài đặt → Giới thiệu; zMac chỉ cài bản có chữ ký đúng
+  khoá của zMac. Bản 0.2.0 trở về trước cần cài tay bản này một lần.
+- **Trang Giới thiệu:** phiên bản, cập nhật, hướng dẫn cài đặt, mã nguồn, báo lỗi, giấy phép.
+- **Ba kiểu `⌥⇥`:** Ảnh xem trước, Biểu tượng app (gọn như `⌘⇥`), Tiêu đề (danh sách). Chỉ kiểu Ảnh xem trước chụp màn hình.
+- **`⌥⇥` ở mọi Space:** thấy cả cửa sổ ở Space khác và app toàn màn hình, chọn là sang đúng Space đó.
+- **Pin thiết bị:** AirPods, Beats, tai nghe Bluetooth, chuột và bàn phím Logitech, tay cầm chơi game. Pin hiện trên notch
+  khi thiết bị kết nối, kèm cảnh báo khi sắp hết.
+- **Trình phát trên màn hình khoá** (tắt sẵn): widget gọn hoặc trình phát đầy đủ kèm lời, ngay dưới đồng hồ.
+- **Notch hiện app đang phát âm thanh:** họp Meet, Zoom hay video không báo "Đang phát" vẫn có icon app kèm sóng.
+- **Chọn lịch:** bật, tắt từng lịch theo tài khoản; thêm lịch Google qua Tài khoản internet của macOS.
+- **Hạn mức Claude lấy thẳng từ Anthropic** (tắt sẵn), số cũ hơn 30 phút hiện mờ. Hook Claude Code tự nối lại khi bị cũ
+  hay bị xoá.
+
+**Sửa**
+
+- Tab trình duyệt đã dừng giữ chỗ trên notch trong lúc Spotify hay Nhạc đang phát: giờ notch hiện đúng bài đang phát,
+  nút phát và chuyển bài tới đúng app. Ảnh bìa Spotify lấy từ mạng nếu bạn bật.
+- Tắt tiếng mà HUD âm lượng vẫn hiện mức cũ: giờ hiện 0%.
+
 ## 0.2.0
 
 17/11/2026

@@ -28,11 +28,12 @@ Nhẹ, miễn phí, mã nguồn mở.
 
 | | Tính năng | Thay cho | Làm gì |
 |:-:|---|---|---|
-| 🪟 | **Chuyển cửa sổ** | AltTab | `⌥⇥` duyệt từng cửa sổ (có ảnh xem trước), `` ⌥` `` cửa sổ của app hiện tại, tuỳ chọn thay `⌘⇥` |
+| 🪟 | **Chuyển cửa sổ** | AltTab | `⌥⇥` duyệt từng cửa sổ ở mọi Space (3 kiểu: ảnh xem trước, biểu tượng app, tiêu đề), `` ⌥` `` cửa sổ của app hiện tại, tuỳ chọn thay `⌘⇥` |
 | 📐 | **Chia cửa sổ** | Rectangle | `⌃⌥` + phím: nửa, góc, phần ba, phóng to, căn giữa, chuyển màn hình; kéo ra mép để xếp |
 | 📋 | **Lịch sử clipboard** | Maccy | `⌘⇧C` mở lịch sử, tìm, ghim, dán; bỏ qua mật khẩu |
 | 🖥️ | **Màn hình** | BetterDisplay | Độ sáng màn ngoài (DDC hoặc làm tối bằng phần mềm), độ phân giải, HiDPI |
 | 🔋 | **Pin** | AlDente | Giới hạn sạc, sailing, chống nóng, xả về ngưỡng, sạc đầy một lần |
+| 🎧 | **Pin thiết bị** | AirBuddy | Pin chuột, bàn phím, trackpad, AirPods (trái, phải, hộp), tay cầm PS / Xbox, Logitech qua đầu thu Unifying / Bolt / Lightspeed: hiện trên notch khi kết nối, báo khi sắp hết pin |
 | 🔊 | **Âm thanh** | FineTune | Âm lượng và loa riêng từng app, đổi thiết bị vào ra |
 | 🎵 | **Notch** | NotchNook | Nhạc đang phát với ảnh bìa (mọi trình phát, kể cả trình duyệt), lời bài hát, kệ file; âm lượng và độ sáng thay HUD macOS; báo pin khi cắm sạc, cảnh báo pin yếu |
 | 📅 | **Lịch** | Itsycal | Tuần này ngay trong notch, chấm ngày có sự kiện, cuộc họp sắp tới kèm nút vào Meet / Zoom / Teams |
@@ -47,7 +48,8 @@ Tính năng nào không dùng thì tắt: module tắt không được tạo ra 
 <p align="center"><img src="docs/images/notch-collapsed.png" width="560" alt="Notch thu gọn: ảnh bìa và sóng nhạc bên trái, thú cưng bên phải"></p>
 
 Lúc thu gọn, notch hiện bài đang phát ở bên trái và thú cưng ở bên phải. Rê chuột (hoặc bấm) để mở: bên trái là
-nhạc, kệ file hoặc thú cưng, bên phải là lịch tuần này.
+nhạc, kệ file hoặc thú cưng, bên phải là lịch tuần này. Khoá máy khi đang nghe nhạc thì ngay dưới đồng hồ có thể hiện
+một widget gọn hoặc trình phát đầy đủ kèm lời (Cài đặt → Notch → Trên màn hình khoá, tắt sẵn).
 
 <p align="center"><img src="docs/images/notch-open.png" width="760" alt="Notch mở: trình phát bên trái, lịch tuần này bên phải"></p>
 
@@ -137,20 +139,27 @@ Có gì mới ở từng bản: [CHANGELOG.md](CHANGELOG.md).
 
 ## Quyền riêng tư
 
-**Mặc định zMac không kết nối mạng**, không tài khoản, không gửi số liệu. Hai tính năng dùng mạng đều tắt sẵn:
+**Mặc định zMac không kết nối mạng**, không tài khoản, không gửi số liệu. Bốn tính năng dùng mạng đều tắt sẵn:
 
 | Tính năng | Gọi tới | Khi nào |
 |---|---|---|
 | Lời bài hát (nút Lời trong notch) | `lrclib.net` | Khi đang xem lời. Chỉ gửi tên bài, ca sĩ, album, độ dài |
+| Hạn mức Claude trực tiếp (Cài đặt → Claude Code) | `api.anthropic.com` | Lúc mở app, mở notch và khi Claude làm xong một lượt, tối đa 2 phút một lần. Đọc token đăng nhập của Claude Code trong Keychain (macOS hỏi quyền) và chỉ gửi nó tới Anthropic; không bao giờ tự làm mới token |
+| Ảnh bìa Spotify từ mạng (Cài đặt → Notch → Nhạc) | `i.scdn.co` (máy chủ ảnh của Spotify) | Khi Spotify đang phát mà macOS còn giữ trình phát khác, nên không có ảnh bìa. Mỗi bài tải một ảnh |
 | Tự cập nhật (Cài đặt → Chung) | `api.github.com`, `github.com` | Lúc mở app và khi máy thức dậy, tối đa mỗi ngày một lần. Chỉ cài bản có chữ ký Ed25519 đúng |
 
-Hạn mức Claude được đọc từ file Claude Code tự lưu trên máy (`~/.claude.json`), không gọi mạng, không đọc Keychain.
-Lịch đọc từ app Lịch của macOS qua EventKit, chỉ đọc, không gửi đi đâu.
+Mặc định hạn mức Claude được đọc từ file Claude Code tự lưu trên máy (`~/.claude.json`), không gọi mạng, không đọc
+Keychain. Claude Code chỉ làm mới số này khi bạn xem mức dùng, nên số cũ hơn 30 phút hiện mờ trên notch.
+Lịch đọc từ app Lịch của macOS qua EventKit, chỉ đọc, không gửi đi đâu. Google Calendar: thêm tài khoản Google trong
+Cài đặt hệ thống → Tài khoản internet (Cài đặt → Lịch có nút mở thẳng), macOS tự đồng bộ, zMac không đăng nhập hay gọi
+mạng riêng. Chọn lịch nào hiện trong Cài đặt → Lịch.
 
 | Quyền | Dùng cho | Bắt buộc |
 |---|---|---|
 | Trợ năng | Chuyển và chia cửa sổ, dán từ clipboard, nút phát nhạc, phím âm lượng và độ sáng trên notch | Có, cho các tính năng đó |
 | Lịch | Tuần này và cuộc họp sắp tới trong notch (chỉ đọc) | Chỉ khi bạn bấm Cho phép |
+| Bluetooth | Pin AirPods, Beats, tai nghe Bluetooth đã ghép đôi (chỉ đọc, không quét) | Chỉ khi bạn bấm Cho phép trong Pin thiết bị |
+| Tự động hoá (Spotify, Nhạc) | Đọc bài đang phát và gửi lệnh phát / chuyển bài khi macOS còn giữ trình phát khác (ví dụ tab trình duyệt đã dừng) | Không. Từ chối thì notch chờ Spotify / Nhạc tự báo khi đổi bài |
 | Ghi âm thanh hệ thống | Âm lượng từng app (macOS hỏi lần đầu bạn chỉnh) | Chỉ khi dùng |
 | Ghi màn hình | Ảnh xem trước trong `⌥⇥` | Không |
 | Mật khẩu admin, một lần | Cài daemon giới hạn sạc | Chỉ khi dùng giới hạn sạc |
@@ -162,7 +171,8 @@ Lịch đọc từ app Lịch của macOS qua EventKit, chỉ đọc, không g�
 - Lịch sử clipboard: `~/Library/Application Support/zMac/Clipboard/` (`history.json` và ảnh PNG)
 - Chính sách sạc: `/Library/Application Support/zMac/battery-policy.json` (daemon ghi)
 - Claude Code: socket `~/Library/Application Support/zMac/claude.sock` khi tính năng bật. Bấm Kết nối thì zMac thêm
-  một hook vào `~/.claude/settings.json` (bản cũ ở `settings.json.zmac-backup`), Gỡ kết nối bỏ đúng hook đó.
+  một hook vào `~/.claude/settings.json` (bản cũ ở `settings.json.zmac-backup`), Gỡ kết nối bỏ đúng hook đó. Đã kết nối
+  thì zMac tự thêm lại hook khi nó bị cũ sau khi cập nhật hay bị công cụ khác xoá (tắt bằng "Tự kết nối lại").
   Hạn mức gần nhất lưu trong defaults (`claude.usage`).
 
 </details>
@@ -231,7 +241,8 @@ App chỉ nhận bản cập nhật ký bằng đúng khoá đó. Mất khoá b�
 - Nhạc đang phát: từ macOS 15.4 app bên thứ ba không gọi thẳng MediaRemote được, nên Notch đọc qua
   [mediaremote-adapter](https://github.com/ungive/mediaremote-adapter). Nếu bản macOS sau chặn cả cách này, Notch lùi về
   Music và Spotify, không có ảnh bìa.
-- `⌥⇥` chỉ thấy cửa sổ ở Space hiện tại, cộng cửa sổ thu nhỏ và app đang ẩn.
+- `⌥⇥` với cửa sổ ở Space khác mà zMac chưa gặp lần nào (chưa mở `⌥⇥` lúc nó còn ở Space đang hiện): không có tiêu đề
+  nếu chưa cấp quyền Ghi màn hình, và W / M không dùng được.
 - Chưa có: màn hình ảo / mở khoá HiDPI cho màn 1440p (như BetterDisplay), âm lượng tổng cho loa HDMI, EQ từng app.
 
 ## Góp ý và báo lỗi
@@ -246,6 +257,7 @@ Pull request luôn được chào đón; đọc [CLAUDE.md](CLAUDE.md) và [docs
 - [lrclib.net](https://lrclib.net): kho lời bài hát miễn phí.
 - [HyperMac](https://github.com/mrgoose000000-gif/HyperMac) (GPL-3.0): tham khảo cách dùng các key SMC, không chép code.
 - [yabai](https://github.com/koekeishiya/yabai) (MIT): cách đưa đúng một cửa sổ lên trước bằng SkyLight.
+- [SkyLightWindow](https://github.com/Lakr233/SkyLightWindow) (MIT): cách hiện cửa sổ trên màn hình khoá bằng một Space SkyLight riêng, không chép code.
 - [MonitorControl](https://github.com/MonitorControl/MonitorControl) (MIT): định dạng gói DDC/CI trên Apple Silicon.
 
 ## Giấy phép

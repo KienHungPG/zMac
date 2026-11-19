@@ -17,17 +17,21 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>0.2.0</string>
+	<string>0.3.0</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Khi Spotify hay Apple Music đang phát nhưng macOS đang giữ trình phát khác, zMac gửi lệnh phát, dừng, chuyển bài thẳng tới app nhạc đó. (When Spotify or Apple Music is playing but macOS is holding on to another player, zMac sends play, pause and skip straight to that music app.)</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>zMac cần quyền này để chỉnh âm lượng riêng từng app. Âm thanh chỉ đi qua bộ nhớ, không ghi lại và không lưu. (zMac needs this to change per-app volume. Audio only passes through memory and is never recorded or saved.)</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>zMac đọc pin AirPods, Beats và tai nghe Bluetooth đã ghép đôi để hiện trên notch. Không quét hay kết nối thiết bị nào. (zMac reads the battery of paired AirPods, Beats and Bluetooth headphones to show it on the notch. It never scans for or connects to anything.)</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>zMac hiện tuần này và cuộc họp sắp tới trong notch. Chỉ đọc, không ghi và không gửi lịch đi đâu. (zMac shows this week and your next meeting in the notch. It only reads, and never writes or sends your calendar anywhere.)</string>
 	<key>NSCalendarsUsageDescription</key>

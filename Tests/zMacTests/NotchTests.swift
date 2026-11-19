@@ -38,6 +38,12 @@ import Testing
     #expect(MediaKeyEvent.volumeSymbol(1, muted: false) == "speaker.wave.3.fill")
 }
 
+@Test func volumeTextShowsZeroWhenMuted() {
+    #expect(MediaKeyEvent.volumeText(1, muted: true) == "0%")
+    #expect(MediaKeyEvent.volumeText(1, muted: false) == "100%")
+    #expect(MediaKeyEvent.volumeText(0.4375, muted: false) == "44%")
+}
+
 @Test func lowBatteryThresholds() {
     #expect(LowBattery.thresholds(20) == [20, 10, 5])
     #expect(LowBattery.thresholds(10) == [10, 5])
@@ -66,4 +72,29 @@ import Testing
     let teams = MeetingLink.find(in: ["<https://teams.microsoft.com/l/meetup-join/19%3ameeting_x%40thread.v2/0?context=%7b%7d>"])
     #expect(teams?.service == "Teams")
     #expect(MeetingLink.find(in: ["https://example.com/meet", "", nil]) == nil)
+}
+
+// MARK: App đang phát âm thanh (họp, video không báo "Đang phát")
+
+@Test func audioActivityNeedsAFewSecondsOfSound() {
+    // Brave vừa phát 1 giây (tiếng "ting"?): chưa hiện, hẹn xét lại lúc đủ 3 giây.
+    let early = AudioActivity.pick(["com.brave.Browser": 100], musicPlaying: false, enabled: true, now: 101)
+    #expect(early.app == nil)
+    #expect(early.recheck == 103)
+    let later = AudioActivity.pick(["com.brave.Browser": 100], musicPlaying: false, enabled: true, now: 103)
+    #expect(later.app == "com.brave.Browser")
+    #expect(later.recheck == nil)
+}
+
+@Test func audioActivityStaysOutOfTheWay() {
+    let meet = ["com.brave.Browser": 0.0]
+    // Đang có nhạc: nhạc hiện như cũ.
+    #expect(AudioActivity.pick(meet, musicPlaying: true, enabled: true, now: 60).app == nil)
+    #expect(AudioActivity.pick(meet, musicPlaying: false, enabled: false, now: 60).app == nil)
+    // Spotify tạm dừng mà vẫn giữ luồng âm thanh: không tính.
+    #expect(AudioActivity.pick(["com.spotify.client": 0], musicPlaying: false, enabled: true, now: 60).app == nil)
+    #expect(AudioActivity.pick(["com.spotify.client": 0], musicPlaying: false, enabled: true, now: 60).recheck == nil)
+    // Nhiều app: app phát lâu nhất.
+    #expect(AudioActivity.pick(["us.zoom.xos": 10, "com.brave.Browser": 5], musicPlaying: false, enabled: true, now: 60).app
+            == "com.brave.Browser")
 }

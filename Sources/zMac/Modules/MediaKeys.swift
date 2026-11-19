@@ -47,6 +47,11 @@ enum MediaKeyEvent {
         return n / steps
     }
 
+    /// Số trên HUD âm lượng. Tắt tiếng thì 0% cho khớp thanh rỗng, dù mức lưu trong loa vẫn giữ nguyên.
+    static func volumeText(_ level: Double, muted: Bool) -> String {
+        "\(muted ? 0 : Int((min(max(level, 0), 1) * 100).rounded()))%"
+    }
+
     /// Icon loa theo mức, như HUD macOS.
     static func volumeSymbol(_ level: Double, muted: Bool) -> String {
         if muted { return "speaker.slash.fill" }
@@ -162,7 +167,7 @@ enum MediaKeyActions {
     }
 
     private static func hud(_ level: Double, muted: Bool) -> NotchHUD {
-        NotchHUD(symbol: MediaKeyEvent.volumeSymbol(level, muted: muted), text: "\(Int((level * 100).rounded()))%",
+        NotchHUD(symbol: MediaKeyEvent.volumeSymbol(level, muted: muted), text: MediaKeyEvent.volumeText(level, muted: muted),
                  color: .white, level: muted ? 0 : level)
     }
 

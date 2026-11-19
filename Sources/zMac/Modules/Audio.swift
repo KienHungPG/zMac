@@ -74,6 +74,8 @@ final class AudioModule: ZModule {
     @ObservationIgnored private var watchedInput = AudioDeviceID(0)
     @ObservationIgnored private var wakeObserver: NSObjectProtocol?
     @ObservationIgnored private var icons: [String: NSImage] = [:]
+    /// App đang phát ra loa (bundle id): Notch dùng để hiện sóng khi đang họp / xem video không báo "Đang phát".
+    @ObservationIgnored private(set) var activeApps: Set<String> = []
 
     init() {}
 
@@ -114,6 +116,8 @@ final class AudioModule: ZModule {
         engine.removeAll()
         allApps = [:]
         icons = [:]
+        activeApps = []
+        ModuleManager.shared.module(NotchModule.self)?.audioAppsChanged([])
     }
 
     // MARK: - Listener Core Audio (block chạy trên main queue)
@@ -229,6 +233,11 @@ final class AudioModule: ZModule {
         }
         allApps = byApp
         icons = icons.filter { byApp[$0.key] != nil }
+        let active = Set(byApp.values.filter(\.active).map(\.id))
+        if active != activeApps {
+            activeApps = active
+            ModuleManager.shared.module(NotchModule.self)?.audioAppsChanged(active)
+        }
         let shown = byApp.values
             .filter { $0.active || !(settings[$0.id]?.isDefault ?? true) }
             .sorted { ($0.active ? 0 : 1, $0.name.lowercased()) < ($1.active ? 0 : 1, $1.name.lowercased()) }

@@ -52,9 +52,23 @@ struct UpdateRelease: Equatable {
               let sig = assets.first(where: { $0["name"] as? String == zipName + ".sig" }),
               let zipURL = url(zip), let sigURL = url(sig),
               zipURL.hasPrefix("https://"), sigURL.hasPrefix("https://") else { return nil }
-        let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
-        return UpdateRelease(version: version, notes: obj["body"] as? String ?? "", zipURL: zipURL, sigURL: sigURL,
+        return UpdateRelease(version: version(tag), notes: obj["body"] as? String ?? "", zipURL: zipURL, sigURL: sigURL,
                              size: (zip["size"] as? NSNumber)?.intValue ?? 0)
+    }
+
+    private static func version(_ tag: String) -> String { tag.hasPrefix("v") ? String(tag.dropFirst()) : tag }
+
+    enum Decision: Equatable { case upToDate, available(UpdateRelease), missingAssets }
+
+    /// Kết quả kiểm tra. Bản mới nhất không mới hơn bản đang chạy thì coi là mới nhất, kể cả khi nó thiếu zip / chữ ký
+    /// (bản cũ chỉ có DMG). nil: JSON hỏng.
+    static func decide(_ json: [UInt8], current: String) -> Decision? {
+        if let r = parse(json) {
+            return UpdateVersion.isNewer(r.version, than: current) ? .available(r) : .upToDate
+        }
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(json)) as? [String: Any],
+              let tag = obj["tag_name"] as? String else { return nil }
+        return UpdateVersion.isNewer(version(tag), than: current) ? .missingAssets : .upToDate
     }
 }
 
@@ -195,13 +209,16 @@ final class Updater {
             Pref.set("update.lastCheck", lastCheck?.timeIntervalSince1970)
             if status == 404 { state = .upToDate; return }   // chưa có bản phát hành nào
             guard status == 200 else { throw URLError(.badServerResponse) }
-            guard let r = UpdateRelease.parse(Array(data)) else {
-                state = .failed(L("Bản phát hành mới nhất thiếu file .zip hoặc chữ ký.",
-                                  "The latest release is missing its .zip or signature."))
-                return
+            switch UpdateRelease.decide(Array(data), current: Self.currentVersion) {
+            case .upToDate: state = .upToDate
+            case .available(let r):
+                state = .available(r)
+                log.info("cập nhật: có bản \(r.version, privacy: .public)")
+            case .missingAssets:
+                state = .failed(L("Bản mới nhất chưa có gói cài có chữ ký. Hãy tải từ trang web.",
+                                  "The newest release has no signed package yet. Download it from the website."))
+            case nil: throw URLError(.cannotParseResponse)
             }
-            state = UpdateVersion.isNewer(r.version, than: Self.currentVersion) ? .available(r) : .upToDate
-            log.info("cập nhật: mới nhất \(r.version, privacy: .public)")
         } catch {
             state = .failed(L("Không kiểm tra được (mất mạng?).", "Couldn't check (offline?)."))
         }
@@ -274,64 +291,7 @@ final class Updater {
 }
 
 // MARK: - Giao diện
-
-/// Mục Cập nhật trong trang Chung.
-struct UpdateSection: View {
-    var updater = Updater.shared
-
-    var body: some View {
-        Section(L("Cập nhật", "Updates")) {
-            LabeledContent(L("Phiên bản", "Version"), value: Updater.currentVersion)
-            if Updater.publicKey == nil {
-                Text(L("Bản build này không có khoá cập nhật (Resources/update-public-key.txt) nên không tự cập nhật được.",
-                       "This build has no update key (Resources/update-public-key.txt), so it can't update itself."))
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Toggle(L("Tự kiểm tra bản mới (tối đa mỗi ngày một lần)", "Check for new versions automatically (at most once a day)"),
-                       isOn: Binding(get: { updater.autoCheck }, set: { updater.autoCheck = $0 }))
-                HStack {
-                    status
-                    Spacer()
-                    if let r = updater.available {
-                        Button(L("Cài \(r.version) và mở lại", "Install \(r.version) and relaunch")) {
-                            Task { await updater.install() }
-                        }
-                        .buttonStyle(.borderedProminent)
-                    } else {
-                        Button(L("Kiểm tra ngay", "Check now")) { Task { await updater.check() } }
-                            .disabled(updater.busy)
-                    }
-                }
-                if let r = updater.available, !r.notes.isEmpty {
-                    Text(r.notes).font(.caption).foregroundStyle(.secondary).lineLimit(5)
-                }
-                Text(L("Kiểm tra hỏi api.github.com; bản mới tải từ github.com và chỉ được cài khi chữ ký Ed25519 khớp khoá gắn trong app. Cài bằng Homebrew thì cập nhật bằng brew upgrade --cask zmac.",
-                       "Checks ask api.github.com; updates download from github.com and only install if their Ed25519 signature matches the key built into the app. Installed with Homebrew? Use brew upgrade --cask zmac."))
-                    .font(.caption).foregroundStyle(.secondary)
-                if let url = URL(string: "https://zmac.vercel.app/#changelog") {
-                    Link(L("Có gì mới ở từng bản", "What's new in each version"), destination: url)
-                        .font(.caption)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder private var status: some View {
-        switch updater.state {
-        case .idle:
-            if let t = updater.lastCheck {
-                Text(L("Kiểm tra lần cuối ", "Last checked ") + t.formatted(date: .abbreviated, time: .shortened))
-                    .foregroundStyle(.secondary)
-            }
-        case .checking: ProgressView().controlSize(.small)
-        case .upToDate: Text(L("Đang dùng bản mới nhất", "You're up to date")).foregroundStyle(ZTheme.green.light)
-        case .available(let r): Text(L("Có bản \(r.version)", "Version \(r.version) is out")).foregroundStyle(ZTheme.orange.light)
-        case .downloading: Text(L("Đang tải và kiểm chữ ký…", "Downloading and verifying…"))
-        case .installing: Text(L("Đang cài…", "Installing…"))
-        case .failed(let m): Text(m).foregroundStyle(Color(hex: 0xFF8A80))
-        }
-    }
-}
+// Mục Cập nhật nằm ở trang Giới thiệu (App/About.swift).
 
 /// Dải báo bản mới trong bảng menu bar.
 struct UpdateBanner: View {

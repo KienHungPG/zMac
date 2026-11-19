@@ -35,6 +35,18 @@ enum MeetingLink {
     }
 }
 
+/// Lịch trong app Lịch, nhóm theo tài khoản (iCloud, Google, Exchange…) cho phần chọn lịch trong Cài đặt.
+struct CalendarSourceGroup: Identifiable, Equatable {
+    struct Item: Identifiable, Equatable {
+        var id: String
+        var title: String
+        var color: Color
+    }
+    var id: String
+    var title: String
+    var items: [Item]
+}
+
 enum CalendarWeek {
     /// 7 ngày, hôm nay ở giữa (lùi 3 ngày), `offset` tuần trước / sau.
     static func days(around today: Date, offset: Int, calendar: Calendar) -> [Date] {
@@ -76,6 +88,10 @@ final class CalendarModule: ZModule {
     private(set) var days: [Date] = []
     private(set) var busyDays: Set<Date> = []
     private(set) var events: [CalendarEvent] = []
+    /// Các lịch đang có, theo tài khoản (Cài đặt hiện để chọn).
+    private(set) var sources: [CalendarSourceGroup] = []
+    /// Lịch người dùng tắt (calendarIdentifier): không hiện sự kiện, không chấm ngày bận.
+    private(set) var hiddenCalendars = Set(Pref.d.stringArray(forKey: "calendar.hidden") ?? [])
 
     @ObservationIgnored private var store: EKEventStore?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -90,6 +106,7 @@ final class CalendarModule: ZModule {
     func start() {
         access = Self.currentAccess()
         if access == .granted { store = EKEventStore() }
+        refreshSources()
         let nc = NotificationCenter.default
         observers.append(nc.addObserver(forName: .EKEventStoreChanged, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.changed() }
@@ -111,6 +128,7 @@ final class CalendarModule: ZModule {
         events = []
         busyDays = []
         days = []
+        sources = []
     }
 
     private static func currentAccess() -> Access {
@@ -131,7 +149,37 @@ final class CalendarModule: ZModule {
 
     private func changed() {
         stale = true
+        refreshSources()
         if visible { reload() }
+    }
+
+    /// Đọc lại danh sách lịch (thêm tài khoản Google, tạo / xoá lịch đều báo EKEventStoreChanged).
+    private func refreshSources() {
+        #if DEBUG
+        if previewing { return }
+        #endif
+        guard access == .granted, let store else { sources = []; return }
+        let groups = Dictionary(grouping: store.calendars(for: .event)) { $0.source?.sourceIdentifier ?? "" }
+        let next = groups.map { id, cals in
+            CalendarSourceGroup(id: id, title: cals.first?.source?.title ?? L("Khác", "Other"),
+                                items: cals.map { .init(id: $0.calendarIdentifier, title: $0.title, color: Color(nsColor: $0.color)) }
+                                    .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending })
+        }
+        .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        if next != sources { sources = next }
+    }
+
+    func setShown(_ id: String, _ shown: Bool) {
+        if shown { hiddenCalendars.remove(id) } else { hiddenCalendars.insert(id) }
+        Pref.set("calendar.hidden", hiddenCalendars.sorted())
+        changed()
+    }
+
+    /// Cài đặt hệ thống → Tài khoản internet (thêm Google, Exchange…).
+    static func openInternetAccounts() {
+        let ws = NSWorkspace.shared
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension"), ws.open(url) { return }
+        ws.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
     }
 
     func reload() {
@@ -147,7 +195,14 @@ final class CalendarModule: ZModule {
             events = []
             return
         }
-        let all = store.events(matching: store.predicateForEvents(withStart: first, end: end, calendars: nil))
+        // Tắt hết lịch thì không có gì (predicate với mảng rỗng không chắc là "không lịch nào").
+        let shown = store.calendars(for: .event).filter { !hiddenCalendars.contains($0.calendarIdentifier) }
+        guard !shown.isEmpty else {
+            busyDays = []
+            events = []
+            return
+        }
+        let all = store.events(matching: store.predicateForEvents(withStart: first, end: end, calendars: shown))
             .filter { !Self.declined($0) }
         var busy = Set<Date>()
         for e in all {
@@ -211,6 +266,7 @@ final class CalendarModule: ZModule {
                 MainActor.assumeIsolated {
                     self.access = granted ? .granted : .denied
                     if granted { self.store = EKEventStore() }
+                    self.refreshSources()
                     self.reload()
                 }
             }
@@ -267,6 +323,30 @@ final class CalendarModule: ZModule {
                 }
                 Text(L("Lịch hiện ở cột bên phải khi mở notch. zMac đọc sự kiện từ app Lịch của macOS (mọi tài khoản bạn đã thêm: iCloud, Google, Exchange), chỉ đọc, không ghi, không gửi đi đâu. Link Meet, Zoom, Teams, Webex trong sự kiện thành nút vào họp.",
                        "The calendar shows in the right column when the notch opens. zMac reads events from the macOS Calendar app (every account you added: iCloud, Google, Exchange). It only reads, never writes or sends anything. Meet, Zoom, Teams and Webex links become a join button."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if access == .granted {
+                ForEach(sources) { group in
+                    Section(group.title) {
+                        ForEach(group.items) { item in
+                            Toggle(isOn: Binding(get: { !self.hiddenCalendars.contains(item.id) },
+                                                 set: { self.setShown(item.id, $0) })) {
+                                HStack(spacing: 8) {
+                                    Circle().fill(item.color).frame(width: 9, height: 9)
+                                    Text(item.title)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Section(L("Google Calendar", "Google Calendar")) {
+                HStack {
+                    Button(L("Thêm tài khoản Google…", "Add a Google account…")) { Self.openInternetAccounts() }
+                    Spacer()
+                }
+                Text(L("Trong Tài khoản internet chọn Google, đăng nhập rồi bật Lịch. macOS tự đồng bộ và zMac thấy lịch Google ngay, không cần đăng nhập riêng trong zMac hay để zMac gọi mạng. Muốn sự kiện mới hiện nhanh hơn: app Lịch → Cài đặt → Tài khoản → Làm mới lịch.",
+                       "In Internet Accounts pick Google, sign in and turn on Calendars. macOS keeps it in sync and zMac sees your Google calendars right away, with no separate sign-in in zMac and no network calls from zMac. For new events to show up sooner: Calendar app → Settings → Accounts → Refresh Calendars."))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -422,6 +502,17 @@ extension CalendarModule {
         days = CalendarWeek.days(around: Date(), offset: 0, calendar: cal)
         selected = today
         busyDays = Set([days[2], days[3], days[4]])
+        sources = [
+            CalendarSourceGroup(id: "g", title: "ban@gmail.com", items: [
+                .init(id: "g1", title: "ban@gmail.com", color: ZTheme.green.light),
+                .init(id: "g2", title: "Ngày lễ ở Việt Nam", color: ZTheme.blue.light),
+            ]),
+            CalendarSourceGroup(id: "i", title: "iCloud", items: [
+                .init(id: "i1", title: "Cá nhân", color: ZTheme.orange.light),
+                .init(id: "i2", title: "Công việc", color: ZTheme.purple.light),
+            ]),
+        ]
+        hiddenCalendars = ["g2"]
         let start = cal.date(bySettingHour: 17, minute: 0, second: 0, of: today) ?? today
         events = [
             CalendarEvent(id: "1", title: "Demo sprint", start: start, end: start.addingTimeInterval(3600), allDay: false,

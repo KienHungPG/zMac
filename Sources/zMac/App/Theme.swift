@@ -39,7 +39,7 @@ enum ZTheme {
         case "switcher", "audio", "calendar": blue
         case "snap", "display", "claude": orange
         case "clipboard", "keepawake", "pet": purple
-        case "notch", "battery": green
+        case "notch", "battery", "devices": green
         default: slate
         }
     }

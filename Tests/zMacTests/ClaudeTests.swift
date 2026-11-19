@@ -311,3 +311,81 @@ private func claudeConfig(account: String? = "u", owner: String? = "u") -> Strin
     #expect(after.sevenDay == u.sevenDay)
     #expect(after.nextReset(after: 1000) == 5000)
 }
+
+// MARK: Tự kết nối lại
+
+@Test func repairsOnlyWhenWantedAndNotInstalled() {
+    #expect(ClaudeHookInstaller.needsRepair(.outdated, wanted: true))
+    #expect(ClaudeHookInstaller.needsRepair(.notInstalled, wanted: true))   // công cụ khác xoá mất
+    #expect(!ClaudeHookInstaller.needsRepair(.installed, wanted: true))
+    #expect(!ClaudeHookInstaller.needsRepair(.outdated, wanted: false))     // đã bấm Gỡ
+    #expect(!ClaudeHookInstaller.needsRepair(.notInstalled, wanted: false))
+}
+
+@Test func wantedIsInferredFromExistingHooks() {
+    #expect(ClaudeHookInstaller.inferWanted(.installed))
+    #expect(ClaudeHookInstaller.inferWanted(.outdated))
+    #expect(!ClaudeHookInstaller.inferWanted(.notInstalled))
+}
+
+@Test func onlyInstalledBuildsRepair() {
+    #expect(ClaudeHookInstaller.autoRepairAllowed(hookPath: "/Applications/zMac.app/Contents/MacOS/zmac-claude-hook"))
+    #expect(ClaudeHookInstaller.autoRepairAllowed(hookPath: "/Users/a/Applications/zMac.app/Contents/MacOS/zmac-claude-hook"))
+    #expect(!ClaudeHookInstaller.autoRepairAllowed(hookPath: "/Users/a/zMac/.build/debug/zmac-claude-hook"))
+    #expect(!ClaudeHookInstaller.autoRepairAllowed(hookPath: "/Users/a/zMac/build/zMac.app/Contents/MacOS/zmac-claude-hook"))
+}
+
+@Test func moveToNewPathIsOutdatedAndRepairFixesIt() throws {
+    let old = "/Users/a/zMac/build/zMac.app/Contents/MacOS/zmac-claude-hook"
+    let new = "/Applications/zMac.app/Contents/MacOS/zmac-claude-hook"
+    let installed = try #require(ClaudeHookInstaller.install([:], path: old))
+    #expect(ClaudeHookInstaller.state(installed, path: new) == .outdated)
+    let fixed = try #require(ClaudeHookInstaller.install(installed, path: new))
+    #expect(ClaudeHookInstaller.state(fixed, path: new) == .installed)
+    #expect(ClaudeHookInstaller.ourCommands(fixed) == [new])
+}
+
+// MARK: Hạn mức lấy thẳng từ Anthropic (tuỳ chọn)
+
+@Test func readsAccessTokenOnlyWhileValid() {
+    let creds = #"{"claudeAiOauth":{"accessToken":"tok","refreshToken":"r","expiresAt":2000000}}"#
+    #expect(ClaudeLiveUsage.accessToken(fromCredentials: Array(creds.utf8), now: 1000) == .success("tok"))
+    // Hết hạn (hoặc còn dưới 30 giây): không gửi, chờ Claude Code tự làm mới.
+    #expect(ClaudeLiveUsage.accessToken(fromCredentials: Array(creds.utf8), now: 1990) == .failure(.expired))
+    #expect(ClaudeLiveUsage.accessToken(fromCredentials: Array(#"{"other":{}}"#.utf8), now: 0) == .failure(.noLogin))
+    #expect(ClaudeLiveUsage.accessToken(fromCredentials: Array("x".utf8), now: 0) == .failure(.noLogin))
+}
+
+@Test func parsesUsageResponse() throws {
+    let body = #"{"five_hour":{"utilization":39.0,"resets_at":"2026-11-18T04:00:00+00:00"},"seven_day":{"utilization":52,"resets_at":null},"seven_day_opus":null}"#
+    let u = try #require(ClaudeUsage.fromResponse(Array(body.utf8), fetchedAt: 500, account: "u"))
+    #expect(u.fiveHour?.percent == 39)
+    #expect(u.sevenDay?.percent == 52)
+    #expect(u.sevenDay?.resetsAt == nil)
+    #expect(u.fetchedAt == 500)
+    #expect(u.account == "u")
+    #expect(u.live == true)
+    #expect(ClaudeUsage.fromResponse(Array(#"{"error":"x"}"#.utf8), fetchedAt: 0, account: nil) == nil)
+}
+
+@Test func keepsTheLaterNumbersForTheSameAccount() {
+    let older = ClaudeUsage(fiveHour: .init(percent: 10), fetchedAt: 100, account: "u")
+    let later = ClaudeUsage(fiveHour: .init(percent: 30), fetchedAt: 200, account: "u", live: true)
+    #expect(ClaudeUsage.newer(later, older) == later)     // file cũ hơn số zMac vừa hỏi: giữ số mới
+    #expect(ClaudeUsage.newer(older, later) == later)
+    let other = ClaudeUsage(fiveHour: .init(percent: 5), fetchedAt: 50, account: "v")
+    #expect(ClaudeUsage.newer(later, other) == other)     // đổi tài khoản: lấy số của tài khoản mới
+}
+
+@Test func usageGoesStaleAfterThirtyMinutes() {
+    let u = ClaudeUsage(fiveHour: .init(percent: 10), fetchedAt: 1000)
+    #expect(!u.isStale(now: 1000 + 29 * 60))
+    #expect(u.isStale(now: 1000 + 30 * 60))
+    #expect(!ClaudeUsage(fiveHour: .init(percent: 10)).isStale(now: 1_000_000))
+}
+
+@Test func readReportsTheSignedInAccount() {
+    let r = ClaudeUsage.readWithAccount(data: .init(Array(claudeConfig(account: "v").utf8)))
+    #expect(r.reading == .noLimits)   // số trong file là của tài khoản "u"
+    #expect(r.account == "v")
+}

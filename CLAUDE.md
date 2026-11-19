@@ -11,7 +11,8 @@ zMac: app menu bar macOS gộp AltTab, Rectangle, Maccy, BetterDisplay, AlDente,
 - `.build/debug/zMac --diagnose` in thông tin phần cứng và trạng thái từng module mà không mở giao diện.
 - `.build/debug/zMac --claude-selftest GIÂY` (chỉ bản debug, cần `ZMAC_CLAUDE_SOCKET`) chạy riêng server socket
   của module Claude Code để thử với `.build/debug/zmac-claude-hook`. Đừng tự bấm "Kết nối" khi thử: nó sửa
-  `~/.claude/settings.json` thật.
+  `~/.claude/settings.json` thật. Bản cài trong Applications (`./build.sh install`) cũng tự sửa file đó nếu người dùng
+  đã kết nối mà hook bị cũ ("Tự kết nối lại"); bản `.build/`, `build/` thì không.
 - `.build/debug/zMac --render-ui THƯ_MỤC` (chỉ bản debug) vẽ Cài đặt, popover, notch, HUD ⌥⇥, Clipboard ra PNG để xem
   khi sửa giao diện. Màu, ô icon, nền kính dùng chung ở `Sources/zMac/App/Theme.swift`.
 - Build phải sạch cảnh báo.

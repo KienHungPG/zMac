@@ -71,3 +71,75 @@ private let full = """
     #expect(t?.duration == nil)
     #expect(t?.position == nil)
 }
+
+// MARK: Chọn bài khi macOS giữ trình phát khác (video Brave tạm dừng, Spotify vẫn phát)
+
+private func adapterTrack(_ bundle: String, _ title: String, playing: Bool) -> NowPlayingTrack? {
+    NowPlayingAdapter.track(from: ["bundleIdentifier": bundle, "title": title, "playing": playing], artwork: nil)
+}
+
+private func spotify(_ title: String, _ state: String) -> NowPlayingTrack? {
+    NowPlayingMonitor.appTrack(["Player State": state, "Name": title, "Artist": "NHA", "Duration": 197_000,
+                                "Playback Position": 88.0], bundle: "com.spotify.client")
+}
+
+@Test func spotifyNotificationBecomesTrack() throws {
+    let t = try #require(spotify("Hai Lần Tan Vỡ", "Playing"))
+    #expect(t.isPlaying)
+    #expect(t.artist == "NHA")
+    #expect(t.duration == 197)
+    #expect(t.position == 88)
+    #expect(spotify("Hai Lần Tan Vỡ", "Stopped") == nil)
+    #expect(spotify("", "Playing") == nil)
+}
+
+@Test func playingSpotifyBeatsPausedBrowser() throws {
+    let brave = adapterTrack("com.brave.Browser", "Phim", playing: false)
+    let song = try #require(spotify("Hai Lần Tan Vỡ", "Playing"))
+    let picked = NowPlayingMonitor.pick(adapter: brave, apps: [song], current: brave)
+    #expect(picked?.bundleID == "com.spotify.client")
+    #expect(picked?.isPlaying == true)
+}
+
+@Test func playingBrowserBeatsPausedSpotify() throws {
+    let brave = adapterTrack("com.brave.Browser", "Phim", playing: true)
+    let song = try #require(spotify("Hai Lần Tan Vỡ", "Paused"))
+    #expect(NowPlayingMonitor.pick(adapter: brave, apps: [song], current: nil)?.bundleID == "com.brave.Browser")
+}
+
+@Test func pausingSpotifyKeepsSpotifyShown() throws {
+    let brave = adapterTrack("com.brave.Browser", "Phim", playing: false)
+    let paused = try #require(spotify("Hai Lần Tan Vỡ", "Paused"))
+    let shown = spotify("Hai Lần Tan Vỡ", "Playing")
+    let picked = NowPlayingMonitor.pick(adapter: brave, apps: [paused], current: shown)
+    #expect(picked?.bundleID == "com.spotify.client")
+    #expect(picked?.isPlaying == false)
+}
+
+@Test func adapterWinsWhenItIsSpotifyToo() throws {
+    // Bình thường macOS chọn đúng Spotify: dùng bản của adapter (có ảnh bìa, tua được).
+    let viaAdapter = adapterTrack("com.spotify.client", "Hai Lần Tan Vỡ", playing: false)
+    let paused = try #require(spotify("Hai Lần Tan Vỡ", "Paused"))
+    let picked = NowPlayingMonitor.pick(adapter: viaAdapter, apps: [paused], current: viaAdapter)
+    #expect(picked?.position == nil)   // bản adapter (không gửi vị trí trong ca này), không phải bản notification
+    #expect(NowPlayingMonitor.pick(adapter: nil, apps: [], current: nil) == nil)
+}
+
+@Test func parsesAppleScriptState() throws {
+    let sep = "\u{1F}"
+    let out = ["playing", "Nỗi Đau Chậm Lại", "NHA", "Album", "165000", "67250"].joined(separator: sep) + "\n"
+    let t = try #require(PlayerScript.parseState(out, bundle: "com.spotify.client"))
+    #expect(t.isPlaying)
+    #expect(t.title == "Nỗi Đau Chậm Lại")
+    #expect(t.duration == 165)
+    #expect(t.position == 67.25)
+    #expect(PlayerScript.parseState("stopped\n", bundle: "com.spotify.client") == nil)
+    #expect(PlayerScript.parseState("", bundle: "com.apple.Music") == nil)
+}
+
+@Test func spotifyArtworkOnlyFromSpotifyOverHttps() {
+    #expect(SpotifyArtwork.allowed(.init(string: "https://i.scdn.co/image/ab67616d0000b273")!) != nil)
+    #expect(SpotifyArtwork.allowed(.init(string: "http://i.scdn.co/image/ab67616d0000b273")!) == nil)
+    #expect(SpotifyArtwork.allowed(.init(string: "https://evil.example/i.scdn.co.png")!) == nil)
+    #expect(SpotifyArtwork.allowed(.init(string: "https://notscdn.co/x")!) == nil)
+}

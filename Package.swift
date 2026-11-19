@@ -21,6 +21,9 @@ let package = Package(
                 .linkedFramework("IOKit"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("ScreenCaptureKit"),
+                .linkedFramework("IOBluetooth"),
+                .linkedFramework("CoreBluetooth"),
+                .linkedFramework("GameController"),
             ]
         ),
         // Daemon root nhỏ: giữ ngưỡng sạc kể cả khi app không chạy. Chạy theo sự kiện, không timer.

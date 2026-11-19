@@ -88,7 +88,7 @@ struct NotchRootView: View {
             let h = model.notchHeight
             HStack(spacing: 0) {
                 HStack(spacing: 6) {
-                    if model.showsLiveActivity, let track = model.track {
+                    if model.showsLiveActivity, let track = model.liveTrack {
                         NotchArtwork(track: track, size: h * 0.62, corner: 6)
                         if model.showsPet { NotchWaveform(track: track, height: h * 0.8) }
                     }
@@ -100,7 +100,7 @@ struct NotchRootView: View {
                     if model.showsPet, let pet = model.pet {
                         // Chừa góc bo của notch bên phải.
                         PetWingView(pet: pet, height: h, musicPlaying: model.track?.isPlaying == true).padding(.trailing, 8)
-                    } else if let track = model.track {
+                    } else if let track = model.liveTrack {
                         NotchWaveform(track: track, height: h)
                     }
                 }
@@ -116,7 +116,7 @@ struct NotchRootView: View {
                 Color.clear.frame(width: model.notchWidth)
             }
             .transition(.opacity)
-        } else if model.showsLiveActivity, let track = model.track {
+        } else if model.showsLiveActivity, let track = model.liveTrack {
             NotchWings(model: model) {
                 NotchArtwork(track: track, size: model.notchHeight * 0.62, corner: 6)
             } right: {
@@ -432,8 +432,11 @@ struct NotchExpandedView: View {
 
     @ViewBuilder private var status: some View {
         HStack(spacing: 10) {
-            if model.showsClaudeUsage, let usage = ModuleManager.shared.module(ClaudeModule.self)?.usage {
-                ClaudeUsageBadge(usage: usage)
+            if model.showsClaudeUsage, let claude = ModuleManager.shared.module(ClaudeModule.self), let usage = claude.usage {
+                ClaudeUsageBadge(usage: usage, stale: claude.usageStale)
+            }
+            if let dev = ModuleManager.shared.module(DevicesModule.self), dev.showInNotch, !dev.devices.isEmpty {
+                DeviceBatteryChips(devices: dev.devices, lowLevel: dev.lowLevel)
             }
             if let keepAwake = ModuleManager.shared.module(KeepAwakeModule.self) {
                 Button {

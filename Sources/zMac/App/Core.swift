@@ -215,6 +215,72 @@ enum PrivateAPI {
         _ = bytes.withUnsafeMutableBufferPointer { post(&psn, $0.baseAddress!) }
         return true
     }
+
+    // Cửa sổ ở các Space đang không hiện (cách yabai, MIT). AX chỉ trả về cửa sổ của Space đang hiện.
+    typealias MainConnectionFn = @convention(c) () -> Int32
+    typealias CopyDisplaySpacesFn = @convention(c) (Int32) -> Unmanaged<CFArray>?
+    typealias CopyWindowsWithTagsFn = @convention(c) (Int32, Int32, CFArray, Int32, UnsafeMutablePointer<UInt64>,
+                                                      UnsafeMutablePointer<UInt64>) -> Unmanaged<CFArray>?
+    typealias WindowQueryFn = @convention(c) (Int32, CFArray, Int32) -> Unmanaged<CFTypeRef>?
+    typealias WindowQueryResultFn = @convention(c) (CFTypeRef) -> Unmanaged<CFTypeRef>?
+    typealias IteratorAdvanceFn = @convention(c) (CFTypeRef) -> Bool
+    typealias IteratorU64Fn = @convention(c) (CFTypeRef) -> UInt64
+    typealias IteratorU32Fn = @convention(c) (CFTypeRef) -> UInt32
+    typealias IteratorPIDFn = @convention(c) (CFTypeRef) -> pid_t
+    static let mainConnectionID = sym(skyLight, "SLSMainConnectionID", MainConnectionFn.self)
+    static let copyManagedDisplaySpaces = sym(skyLight, "SLSCopyManagedDisplaySpaces", CopyDisplaySpacesFn.self)
+    static let copyWindowsWithTags = sym(skyLight, "SLSCopyWindowsWithOptionsAndTags", CopyWindowsWithTagsFn.self)
+    static let windowQuery = sym(skyLight, "SLSWindowQueryWindows", WindowQueryFn.self)
+    static let windowQueryResult = sym(skyLight, "SLSWindowQueryResultCopyWindows", WindowQueryResultFn.self)
+    static let iteratorAdvance = sym(skyLight, "SLSWindowIteratorAdvance", IteratorAdvanceFn.self)
+    static let iteratorTags = sym(skyLight, "SLSWindowIteratorGetTags", IteratorU64Fn.self)
+    static let iteratorAttributes = sym(skyLight, "SLSWindowIteratorGetAttributes", IteratorU32Fn.self)
+    static let iteratorParent = sym(skyLight, "SLSWindowIteratorGetParentID", IteratorU32Fn.self)
+    static let iteratorWindowID = sym(skyLight, "SLSWindowIteratorGetWindowID", IteratorU32Fn.self)
+    static let iteratorPID = sym(skyLight, "SLSWindowIteratorGetPID", IteratorPIDFn.self)
+
+    static var canListOtherSpaces: Bool {
+        mainConnectionID != nil && copyManagedDisplaySpaces != nil && copyWindowsWithTags != nil && windowQuery != nil
+            && windowQueryResult != nil && iteratorAdvance != nil && iteratorTags != nil && iteratorAttributes != nil
+            && iteratorParent != nil && iteratorWindowID != nil && iteratorPID != nil
+    }
+
+    /// Space không phải Space đang hiện của màn hình nào (gồm Space toàn màn hình).
+    static func hiddenSpaceIDs(_ displays: [[String: Any]]) -> [Int] {
+        displays.flatMap { d -> [Int] in
+            let current = (d["Current Space"] as? [String: Any])?["ManagedSpaceID"] as? Int
+            return (d["Spaces"] as? [[String: Any]] ?? []).compactMap { $0["ManagedSpaceID"] as? Int }.filter { $0 != current }
+        }
+    }
+
+    /// Cửa sổ thật: không có cửa sổ cha (loại thanh công cụ con), đang đặt trong Space (loại cửa sổ phụ đã ẩn).
+    static func isUserWindow(parent: UInt32, attributes: UInt32, tags: UInt64) -> Bool {
+        parent == 0 && (attributes & 0x2 != 0 || tags & 0x400000000000000 != 0) && tags & 0x1 != 0
+    }
+
+    /// Cửa sổ ở các Space đang không hiện, theo pid. nil khi thiếu API (gọi nơi lùi về chỉ Space hiện tại).
+    static func windowsOnHiddenSpaces() -> [pid_t: [CGWindowID]]? {
+        guard let conn = mainConnectionID, let copySpaces = copyManagedDisplaySpaces, let copyWindows = copyWindowsWithTags,
+              let query = windowQuery, let queryResult = windowQueryResult, let advance = iteratorAdvance,
+              let tagsOf = iteratorTags, let attributesOf = iteratorAttributes, let parentOf = iteratorParent,
+              let idOf = iteratorWindowID, let pidOf = iteratorPID else { return nil }
+        let cid = conn()
+        guard let displays = copySpaces(cid)?.takeRetainedValue() as? [[String: Any]] else { return nil }
+        let spaces = hiddenSpaceIDs(displays)
+        guard !spaces.isEmpty else { return [:] }
+        var setTags: UInt64 = 0, clearTags: UInt64 = 0
+        // 0x2: cửa sổ đang đặt trong Space, không gồm cửa sổ thu nhỏ (AX đã trả về những cửa sổ đó).
+        guard let list = copyWindows(cid, 0, spaces as CFArray, 0x2, &setTags, &clearTags)?.takeRetainedValue(),
+              CFArrayGetCount(list) > 0,
+              let q = query(cid, list, Int32(CFArrayGetCount(list)))?.takeRetainedValue(),
+              let it = queryResult(q)?.takeRetainedValue() else { return [:] }
+        var out: [pid_t: [CGWindowID]] = [:]
+        while advance(it) {
+            guard isUserWindow(parent: parentOf(it), attributes: attributesOf(it), tags: tagsOf(it)) else { continue }
+            out[pidOf(it), default: []].append(idOf(it))
+        }
+        return out
+    }
 }
 
 // MARK: - AX tiện ích

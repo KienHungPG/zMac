@@ -53,3 +53,15 @@ private let releaseJSON = """
     #expect(!UpdateSignature.verify(bytes: file, signature: "rác", publicKey: pub))
     #expect(!UpdateSignature.verify(bytes: file, signature: sig, publicKey: "rác"))
 }
+
+@Test func olderReleaseWithoutSignedZipCountsAsUpToDate() throws {
+    // v0.2.0 chỉ có DMG (phát hành trước khi có khoá ký).
+    let dmgOnly = #"{"tag_name":"v0.2.0","assets":[{"name":"zMac.dmg","browser_download_url":"https://x/zMac.dmg"}]}"#
+    #expect(UpdateRelease.decide(Array(dmgOnly.utf8), current: "0.2.0") == .upToDate)
+    #expect(UpdateRelease.decide(Array(dmgOnly.utf8), current: "0.1.9") == .missingAssets)
+    // Bản mới hơn có đủ zip + chữ ký.
+    let r = try #require(UpdateRelease.parse(Array(releaseJSON.utf8)))
+    #expect(UpdateRelease.decide(Array(releaseJSON.utf8), current: "0.1.0") == .available(r))
+    #expect(UpdateRelease.decide(Array(releaseJSON.utf8), current: "0.2.0") == .upToDate)
+    #expect(UpdateRelease.decide(Array("không phải json".utf8), current: "0.2.0") == nil)
+}

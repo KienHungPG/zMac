@@ -22,8 +22,9 @@ enum UIPreview {
         manager.attachForPreview()
         manager.module(ClaudeModule.self)?.previewUsage()
         manager.module(CalendarModule.self)?.previewSample()
+        manager.module(DevicesModule.self)?.previewSample()
 
-        for sel in ["general", "performance"] + manager.types.map({ $0.id }) {
+        for sel in ["general", "performance"] + manager.types.map({ $0.id }) + ["about"] {
             save("settings-\(sel)", SettingsRoot(selection: sel), CGSize(width: 860, height: 620), to: out)
         }
         save("popover", QuickPanel(), nil, to: out)
@@ -45,11 +46,12 @@ enum UIPreview {
             let hud = SwitcherState()
             hud.items = sampleWindows
             hud.selected = 1
+            hud.columns = hud.items.count
             save("readme-hero", ZStack(alignment: .top) {
                 ZBackdrop()
                 VStack(spacing: 70) {
                     NotchRootView(model: notch).frame(height: notch.expandedSize.height)
-                    SwitcherView(state: hud, cardWidth: { 112 }, onSelect: { _ in })
+                    SwitcherView(state: hud, onSelect: { _ in })
                 }
             }, CGSize(width: 1180, height: 410), to: out)
             if let claude = manager.module(ClaudeModule.self) {
@@ -71,6 +73,17 @@ enum UIPreview {
             notch.lyricsEnabled = true
             notch.lyrics.previewSet(.found(.synced(sampleLyrics)), for: sampleTrack)
             save("notch-lyrics", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            // Trình phát trên màn hình khoá (đang bật lời), trên nền giả màn hình khoá.
+            for style in [LockScreenStyle.compact, .full] {
+                notch.lockScreenStyle = style
+                save("lockscreen-\(style.rawValue)", lockBackdrop(LockScreenWidgetView(model: notch)),
+                     CGSize(width: 720, height: 470), to: out)
+            }
+            notch.lockScreenStyle = .compact
+            save("settings-lockscreen", ZStack { ZBackdrop(); Form { notch.lockScreenSettings }.formStyle(.grouped)
+                    .scrollContentBackground(.hidden).zCompactForm() },
+                 CGSize(width: 660, height: 360), to: out)
+            notch.lockScreenStyle = .off
             notch.showLyrics = false
             notch.tab = .pet
             save("notch-pet", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
@@ -97,6 +110,12 @@ enum UIPreview {
                           notch: CGSize(width: 209, height: 38))
             save("notch-volume-100-left", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.wingsBothSides = true
+            // Tắt tiếng khi loa đang 100%: thanh rỗng, số 0%.
+            notch.preview(open: false, track: nil,
+                          hud: NotchHUD(symbol: MediaKeyEvent.volumeSymbol(1, muted: true),
+                                        text: MediaKeyEvent.volumeText(1, muted: true), color: .white, level: 0),
+                          notch: CGSize(width: 209, height: 38))
+            save("notch-volume-muted", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.preview(open: false, track: sampleTrack,
                           hud: NotchHUD(symbol: "tv", text: "Chỉnh trên TV", color: .white.opacity(0.85), wide: true))
             save("notch-volume-fixed", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
@@ -108,6 +127,15 @@ enum UIPreview {
             notch.wingsBothSides = true
             notch.preview(open: false, track: nil, hud: nil, alert: LowBattery.alert(percent: 10, lowPower: false))
             save("notch-lowbattery", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            // Pin thiết bị: AirPods vừa kết nối, chuột Logitech sắp hết pin.
+            notch.preview(open: false, track: nil,
+                          hud: NotchHUD(symbol: DeviceBattery.symbol(kind: .headphones, name: "AirPods Pro"), text: "75%",
+                                        color: .white, level: 0.75))
+            save("notch-device-hud", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
+            notch.preview(open: false, track: nil, hud: nil,
+                          alert: NotchAlert(symbol: "computermouse", tint: Color(hex: 0xFF5F57), title: "MX Master 3S",
+                                            value: "9%", detail: L("Sắp hết pin, sạc ngay nhé.", "Almost out of battery, charge it now.")))
+            save("notch-device-low", ZStack(alignment: .top) { ZBackdrop(); NotchRootView(model: notch) }, size, to: out)
             notch.preview(open: false, track: nil, hud: nil)
         }
 
@@ -135,10 +163,19 @@ enum UIPreview {
             }
         }.padding(20).background(Color.black), nil, to: out)
 
+        // HUD ⌥⇥ theo từng kiểu; ô đầu chọn để thấy tiêu đề ở cột sát mép (kiểu Biểu tượng app).
         let state = SwitcherState()
         state.items = sampleWindows
-        state.selected = 1
-        save("switcher", SwitcherView(state: state, cardWidth: { 112 }, onSelect: { _ in }), nil, to: out)
+        for (name, style, selected) in [("switcher", SwitcherStyle.icons, 1), ("switcher-icons-edge", .icons, 0),
+                                        ("switcher-thumbnails", .thumbnails, 1), ("switcher-titles", .titles, 1)] {
+            state.style = style
+            state.selected = selected
+            state.columns = style.columns(count: state.items.count, area: CGSize(width: 1300, height: 760))
+            // Ảnh giả cho vài cửa sổ; cửa sổ cuối không có ảnh để thấy chỗ thay bằng biểu tượng.
+            state.thumbnails = style == .thumbnails
+                ? Dictionary(uniqueKeysWithValues: state.items.dropLast().enumerated().map { ($1.id, sampleWindowShot($0)) }) : [:]
+            save(name, SwitcherView(state: state, onSelect: { _ in }), nil, to: out)
+        }
 
         if let clip = manager.module(ClipboardModule.self) {
             clip.previewItems()
@@ -215,6 +252,47 @@ enum UIPreview {
     private static var sampleTrack: NowPlayingTrack {
         NowPlayingTrack(bundleID: "com.apple.Music", title: "Quiet Harbor", artist: "Lumen Drift", album: "Night Ferries",
                         isPlaying: true, duration: 205, position: 72, updatedAt: Date(), artwork: sampleArtwork)
+    }
+
+    /// Nền giả màn hình khoá: hình nền, ngày, đồng hồ lớn, widget ngay dưới.
+    private static func lockBackdrop(_ widget: some View) -> some View {
+        ZStack(alignment: .top) {
+            LinearGradient(colors: [Color(hex: 0x3F5FB8), Color(hex: 0x7C5CB8), Color(hex: 0xC97F96)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            VStack(spacing: 0) {
+                Text(L("Thứ Năm, 19 tháng 11", "Thursday, November 19"))
+                    .font(.system(size: 15, weight: .semibold)).foregroundStyle(.white.opacity(0.85))
+                    .padding(.top, 30)
+                Text("9:41").font(.system(size: 84, weight: .bold, design: .rounded)).foregroundStyle(.white.opacity(0.9))
+                widget.padding(.top, 16)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Ảnh giả của một cửa sổ cho kiểu Ảnh xem trước: thanh tiêu đề, vài dòng chữ, một khối màu.
+    private static func sampleWindowShot(_ i: Int) -> NSImage {
+        let hues = [ZTheme.blue, ZTheme.orange, ZTheme.green, ZTheme.purple]
+        return NSImage(size: NSSize(width: 320, height: 200), flipped: true) { r in
+            NSColor(white: 0.97, alpha: 1).setFill()
+            r.fill()
+            NSColor(white: 0.88, alpha: 1).setFill()
+            NSRect(x: 0, y: 0, width: r.width, height: 22).fill()
+            for (j, c) in [NSColor.systemRed, .systemYellow, .systemGreen].enumerated() {
+                c.setFill()
+                NSBezierPath(ovalIn: NSRect(x: 10 + j * 14, y: 7, width: 8, height: 8)).fill()
+            }
+            NSColor(white: 0.25, alpha: 1).setFill()
+            NSBezierPath(roundedRect: NSRect(x: 20, y: 40, width: 150, height: 14), xRadius: 4, yRadius: 4).fill()
+            NSColor(white: 0.7, alpha: 1).setFill()
+            for k in 0..<3 {
+                NSBezierPath(roundedRect: NSRect(x: 20, y: 66 + k * 14, width: 120 - k * 20, height: 7), xRadius: 3, yRadius: 3).fill()
+            }
+            let hue = hues[i % hues.count]
+            NSGradient(colors: [NSColor(hue.light), NSColor(hue.dark)])?
+                .draw(in: NSBezierPath(roundedRect: NSRect(x: 180, y: 40, width: 120, height: 140), xRadius: 8, yRadius: 8), angle: 60)
+            return true
+        }
     }
 
     private static var sampleWindows: [SwitcherItem] {

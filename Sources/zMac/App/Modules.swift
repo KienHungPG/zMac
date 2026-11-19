@@ -42,6 +42,7 @@ final class ModuleManager {
         ClipboardModule.self,
         DisplayModule.self,
         BatteryModule.self,
+        DevicesModule.self,
         AudioModule.self,
         NotchModule.self,
         CalendarModule.self,
@@ -119,7 +120,7 @@ enum Diagnostics {
         line("  quyền: accessibility=\(AXIsProcessTrusted()) screen=\(CGPreflightScreenCaptureAccess())")
         line("  API riêng: axGetWindow=\(PrivateAPI.axGetWindow != nil) setFront=\(PrivateAPI.setFrontProcess != nil) " +
              "postEvent=\(PrivateAPI.postEventRecord != nil) symbolicHotKey=\(PrivateAPI.setSymbolicHotKeyEnabled != nil) " +
-             "brightness=\(PrivateAPI.getBrightness != nil)")
+             "brightness=\(PrivateAPI.getBrightness != nil) otherSpaces=\(PrivateAPI.canListOtherSpaces)")
         line("  module:")
         for t in ModuleManager.shared.types {
             line("    \(t.id): \(t.unavailableReason.map { "không hỗ trợ (\($0))" } ?? "hỗ trợ")")

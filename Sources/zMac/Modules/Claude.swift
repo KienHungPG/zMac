@@ -7,7 +7,8 @@ import SwiftUI
 // - zmac-claude-hook (hook PermissionRequest) gửi yêu cầu qua Unix socket trong Application Support.
 // - Module nghe socket bằng DispatchSource (theo sự kiện, không poll). Mỗi yêu cầu giữ kết nối tới khi người dùng bấm.
 // - Hook đóng kết nối (người dùng trả lời trong terminal, Claude Code huỷ) thì thẻ tự biến mất.
-// - Chỉ sửa ~/.claude/settings.json khi người dùng bấm Kết nối; Gỡ chỉ bỏ đúng mục của zMac.
+// - Chỉ sửa ~/.claude/settings.json khi người dùng bấm Kết nối; Gỡ chỉ bỏ đúng mục của zMac. Đã kết nối (chưa Gỡ) thì
+//   bản cài trong Applications tự nối lại khi hook bị cũ, đổi đường dẫn hay bị xoá (tắt được; theo dõi file bằng kqueue).
 
 /// Một câu hỏi của công cụ AskUserQuestion (Claude hỏi lại người dùng, kèm 2 đến 4 lựa chọn).
 struct ClaudeQuestion: Equatable {
@@ -222,8 +223,15 @@ struct ClaudeUsage: Codable, Equatable {
 
     var fiveHour: Window?
     var sevenDay: Window?
-    /// Lúc Claude Code lấy số liệu (giây kể từ 1970).
+    /// Lúc lấy số liệu (giây kể từ 1970): Claude Code ghi vào ~/.claude.json, hoặc zMac tự hỏi Anthropic.
     var fetchedAt: Double?
+    /// Tài khoản Claude của số liệu (accountUuid), để không lẫn số khi đổi tài khoản.
+    var account: String? = nil
+    /// zMac tự hỏi Anthropic (tuỳ chọn) thay vì đọc số Claude Code lưu.
+    var live: Bool? = nil
+
+    /// Số đã cũ hơn 30 phút: notch hiện mờ đi.
+    static let staleAfter: Double = 30 * 60
 
     var hasLimits: Bool { fiveHour != nil || sevenDay != nil }
 
@@ -239,22 +247,46 @@ struct ClaudeUsage: Codable, Equatable {
 
     static func read(_ bytes: [UInt8]) -> Reading { read(data: Data(bytes)) }
 
-    static func read(data: Data) -> Reading {
-        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return .unreadable }
+    static func read(data: Data) -> Reading { readWithAccount(data: data).reading }
+
+    /// Như `read`, kèm tài khoản đang đăng nhập (oauthAccount.accountUuid) để biết số zMac tự lấy còn đúng người không.
+    static func readWithAccount(data: Data) -> (reading: Reading, account: String?) {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return (.unreadable, nil) }
+        let current = (obj["oauthAccount"] as? [String: Any])?["accountUuid"] as? String
         guard let cache = obj["cachedUsageUtilization"] as? [String: Any],
-              let util = cache["utilization"] as? [String: Any] else { return .noLimits }
+              let util = cache["utilization"] as? [String: Any] else { return (.noLimits, current) }
         // Claude Code chỉ lấy số mới sau một lúc, nên ngay sau khi đổi tài khoản file vẫn giữ số của tài khoản cũ.
-        if let owner = cache["accountUuid"] as? String {
-            guard let current = (obj["oauthAccount"] as? [String: Any])?["accountUuid"] as? String,
-                  current == owner else { return .noLimits }
-        }
+        let owner = cache["accountUuid"] as? String
+        if let owner, owner != current { return (.noLimits, current) }
+        guard let u = parse(util, fetchedAt: number(cache["fetchedAtMs"]).map { $0 / 1000 }, account: owner ?? current)
+        else { return (.noLimits, current) }
+        return (.usage(u), current)
+    }
+
+    /// Phần "utilization" (Claude Code lưu nguyên câu trả lời của api/oauth/usage): five_hour, seven_day.
+    static func parse(_ util: [String: Any], fetchedAt: Double?, account: String?, live: Bool? = nil) -> ClaudeUsage? {
         func window(_ key: String) -> Window? {
             guard let w = util[key] as? [String: Any], let p = number(w["utilization"]) else { return nil }
             return Window(percent: min(max(p, 0), 100), resetsAt: time(w["resets_at"]))
         }
-        let u = ClaudeUsage(fiveHour: window("five_hour"), sevenDay: window("seven_day"),
-                            fetchedAt: number(cache["fetchedAtMs"]).map { $0 / 1000 })
-        return u.hasLimits ? .usage(u) : .noLimits
+        let u = ClaudeUsage(fiveHour: window("five_hour"), sevenDay: window("seven_day"), fetchedAt: fetchedAt,
+                            account: account, live: live)
+        return u.hasLimits ? u : nil
+    }
+
+    /// Câu trả lời của api.anthropic.com/api/oauth/usage (zMac tự hỏi).
+    static func fromResponse(_ bytes: [UInt8], fetchedAt: Double, account: String?) -> ClaudeUsage? {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any] else { return nil }
+        return parse(obj, fetchedAt: fetchedAt, account: account, live: true)
+    }
+
+    func isStale(now: Double) -> Bool { fetchedAt.map { now - $0 >= Self.staleAfter } ?? false }
+
+    /// Gộp số mới (từ file hoặc tự hỏi) với số đang hiện: cùng tài khoản thì giữ số lấy sau cùng.
+    static func newer(_ current: ClaudeUsage?, _ fresh: ClaudeUsage) -> ClaudeUsage {
+        guard let current, current.account == fresh.account,
+              let a = current.fetchedAt, let b = fresh.fetchedAt, b < a else { return fresh }
+        return current
     }
 
     private static func number(_ v: Any?) -> Double? {
@@ -298,6 +330,71 @@ struct ClaudeUsage: Codable, Equatable {
     }
 }
 
+// MARK: - Hạn mức lấy thẳng từ Anthropic (tuỳ chọn, tắt sẵn)
+
+/// Đọc token đăng nhập Claude Code trong Keychain ("Claude Code-credentials", macOS hỏi quyền lần đầu) rồi hỏi
+/// api.anthropic.com/api/oauth/usage, chỗ Claude Code lấy số cho /usage. Không bao giờ làm mới token: làm vậy đổi
+/// refresh token và Claude Code bị đăng xuất. Token hết hạn thì chờ Claude Code tự làm mới. Không ghi token ra log.
+enum ClaudeLiveUsage {
+    enum Failure: Error, Equatable { case noLogin, denied, expired, rejected, network }
+
+    static let service = "Claude Code-credentials"
+    static let endpoint = URL(string: "https://api.anthropic.com/api/oauth/usage")!
+
+    /// {"claudeAiOauth": {"accessToken": "...", "expiresAt": mili giây}} → token còn hạn.
+    static func accessToken(fromCredentials bytes: [UInt8], now: Double) -> Result<String, Failure> {
+        guard let obj = try? JSONSerialization.jsonObject(with: Data(bytes)) as? [String: Any],
+              let oauth = obj["claudeAiOauth"] as? [String: Any],
+              let token = oauth["accessToken"] as? String, !token.isEmpty else { return .failure(.noLogin) }
+        if let exp = (oauth["expiresAt"] as? NSNumber)?.doubleValue, exp / 1000 <= now + 30 { return .failure(.expired) }
+        return .success(token)
+    }
+
+    /// Chạy trên luồng nền: SecItemCopyMatching chờ tới khi người dùng trả lời hộp hỏi quyền Keychain.
+    nonisolated private static func token(now: Double) -> Result<String, Failure> {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: service,
+                                    kSecReturnData as String: true,
+                                    kSecMatchLimit as String: kSecMatchLimitOne]
+        var out: CFTypeRef?
+        switch SecItemCopyMatching(query as CFDictionary, &out) {
+        case errSecSuccess: break
+        case errSecItemNotFound: return .failure(.noLogin)
+        default: return .failure(.denied)
+        }
+        guard let data = out as? Data else { return .failure(.noLogin) }
+        return accessToken(fromCredentials: Array(data), now: now)
+    }
+
+    /// Kết quả (câu trả lời JSON, dạng byte) gọi trên main.
+    static func fetch(done: @escaping @MainActor @Sendable (Result<[UInt8], Failure>) -> Void) {
+        func finish(_ r: Result<[UInt8], Failure>) {
+            DispatchQueue.main.async { MainActor.assumeIsolated { done(r) } }
+        }
+        DispatchQueue.global(qos: .utility).async {
+            let token: String
+            switch Self.token(now: Date().timeIntervalSince1970) {
+            case .failure(let f): return finish(.failure(f))
+            case .success(let t): token = t
+            }
+            var req = URLRequest(url: endpoint, timeoutInterval: 10)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            req.setValue("application/json", forHTTPHeaderField: "Accept")
+            // Phiên ephemeral: không ghi cache / cookie ra đĩa.
+            let session = URLSession(configuration: .ephemeral)
+            session.dataTask(with: req) { data, response, _ in
+                switch (response as? HTTPURLResponse)?.statusCode {
+                case 200?: finish(data.map { .success(Array($0)) } ?? .failure(.network))
+                case 401?, 403?: finish(.failure(.rejected))
+                default: finish(.failure(.network))
+                }
+            }.resume()
+            session.finishTasksAndInvalidate()
+        }
+    }
+}
+
 // MARK: - Ghi / gỡ hook trong ~/.claude/settings.json (hàm thuần, có test)
 
 enum ClaudeHookInstaller {
@@ -311,6 +408,16 @@ enum ClaudeHookInstaller {
     static let watchTimeout = 5
 
     enum State: Equatable { case notInstalled, installed, outdated }
+
+    /// Tự nối lại khi người dùng đã bấm Kết nối (chưa Gỡ) mà hook của zMac bị cũ, đổi đường dẫn hay bị xoá mất.
+    static func needsRepair(_ state: State, wanted: Bool) -> Bool { wanted && state != .installed }
+
+    /// Bản trước chưa lưu ý muốn kết nối: settings.json đang có hook của zMac thì coi như đã bấm Kết nối.
+    static func inferWanted(_ state: State) -> Bool { state != .notInstalled }
+
+    /// Chỉ bản cài (/Applications, ~/Applications) mới tự sửa settings.json; bản chạy thử (.build, build/) thì không,
+    /// kẻo hai bản giành nhau đường dẫn hook.
+    static func autoRepairAllowed(hookPath: String) -> Bool { hookPath.contains("/Applications/") }
 
     /// Lệnh shell gọi hook. Đường dẫn có ký tự lạ thì đặt trong nháy đơn.
     static func command(for path: String) -> String {
@@ -431,6 +538,42 @@ final class ClaudeModule: ZModule {
     var resetAlert = Pref.bool("claude.resetAlert", true) {
         didSet { Pref.set("claude.resetAlert", resetAlert) }
     }
+    /// Tự hỏi hạn mức từ Anthropic (Keychain + mạng). Tắt sẵn.
+    var liveUsage = Pref.bool("claude.liveUsage", false) {
+        didSet {
+            Pref.set("claude.liveUsage", liveUsage)
+            liveUsageError = nil
+            liveBlocked = false
+            if liveUsage { fetchUsage(force: true) }
+        }
+    }
+    /// Lần tự hỏi gần nhất bị lỗi (hiện trong Cài đặt).
+    private(set) var liveUsageError: String?
+    /// Số đang hiện đã cũ hơn 30 phút.
+    private(set) var usageStale = false
+    @ObservationIgnored private var active = false
+    @ObservationIgnored private var fetching = false
+    @ObservationIgnored private var lastFetch: Date?
+    /// Bị từ chối Keychain / chưa đăng nhập: thôi hỏi tới khi bật lại công tắc, không hiện hộp hỏi quyền mãi.
+    @ObservationIgnored private var liveBlocked = false
+    /// Tài khoản đang đăng nhập Claude Code (đọc từ ~/.claude.json).
+    @ObservationIgnored private var currentAccount: String?
+    @ObservationIgnored private var staleWork: DispatchWorkItem?
+
+    /// Hook bị cũ / đổi đường dẫn / bị xoá thì tự thêm lại (chỉ khi đã bấm Kết nối).
+    var autoReconnect = Pref.bool("claude.autoReconnect", true) {
+        didSet {
+            Pref.set("claude.autoReconnect", autoReconnect)
+            if autoReconnect { repairIfNeeded() }
+        }
+    }
+
+    /// Người dùng muốn kết nối: bật khi bấm Kết nối, tắt khi Gỡ. nil = chưa biết (cài từ bản chưa lưu mục này).
+    @ObservationIgnored private var wantsConnection = UserDefaults.standard.object(forKey: "claude.connected") as? Bool
+    /// Số lần tự nối lại trong lần chạy này: công cụ khác cứ xoá hook thì thôi, không giành nhau mãi.
+    @ObservationIgnored private var repairs = 0
+    @ObservationIgnored private var settingsSource: DispatchSourceFileSystemObject?
+    @ObservationIgnored private var settingsWork: DispatchWorkItem?
 
     @ObservationIgnored private var resetWork: DispatchWorkItem?
     @ObservationIgnored private var configSource: DispatchSourceFileSystemObject?
@@ -460,19 +603,31 @@ final class ClaudeModule: ZModule {
     init() {}
 
     func start() {
+        active = true
         refreshHookState()
+        repairIfNeeded()
+        watchSettings()
         watchConfig()
         readConfig()
         startServer()
+        updateStale()
+        fetchUsage(force: true)
     }
 
     func stop() {
+        active = false
+        staleWork?.cancel()
+        staleWork = nil
         resetWork?.cancel()
         resetWork = nil
         configWork?.cancel()
         configWork = nil
         configSource?.cancel()   // cancel handler đóng fd
         configSource = nil
+        settingsWork?.cancel()
+        settingsWork = nil
+        settingsSource?.cancel()   // cancel handler đóng fd
+        settingsSource = nil
         passAll()
         for c in clients.values { c.source.cancel() }
         clients.removeAll()
@@ -557,6 +712,8 @@ final class ClaudeModule: ZModule {
                 log.info("claude: \(ev.name, privacy: .public) gỡ thẻ \(r.tool, privacy: .public)")
                 finish(r.fd, .pass, suggestions: nil)
             }
+            // Claude vừa dùng thêm: hỏi lại hạn mức (nếu bật, tối đa 2 phút một lần).
+            fetchUsage()
             return
         }
         #if DEBUG
@@ -669,14 +826,33 @@ final class ClaudeModule: ZModule {
 
     fileprivate func readConfig() {
         // Không có file (chưa cài / đã gỡ Claude Code) thì cũng không còn số nào đúng.
-        let reading = FileManager.default.contents(atPath: Self.claudeConfigPath).map { ClaudeUsage.read(data: $0) } ?? .noLimits
+        let (reading, account) = FileManager.default.contents(atPath: Self.claudeConfigPath)
+            .map { ClaudeUsage.readWithAccount(data: $0) } ?? (.noLimits, nil)
+        if case .unreadable = reading { return }
+        let switched = currentAccount != nil && account != currentAccount
+        currentAccount = account
+        if switched { fetchUsage(force: true) }
+        apply(reading: reading)
+    }
+
+    /// Gộp số đọc từ file với số đang hiện (có thể do zMac tự hỏi Anthropic).
+    private func apply(reading: ClaudeUsage.Reading) {
         let next: ClaudeUsage?
         switch reading {
         case .unreadable: return
-        case .noLimits: next = nil
-        // Hạn mức đã qua giờ đặt lại mà Claude Code chưa lấy số mới: coi là 0, không báo lại.
-        case .usage(let fresh): next = fresh.resetting(now: Date().timeIntervalSince1970).usage
+        case .noLimits:
+            // File vẫn là số của tài khoản cũ nhưng zMac đã tự lấy số cho đúng tài khoản đang đăng nhập: giữ.
+            if let u = usage, u.live == true, u.account != nil, u.account == currentAccount { return }
+            next = nil
+        // Hạn mức đã qua giờ đặt lại mà chưa có số mới: coi là 0, không báo lại.
+        case .usage(let fresh):
+            next = ClaudeUsage.newer(usage, fresh).resetting(now: Date().timeIntervalSince1970).usage
         }
+        setUsage(next)
+    }
+
+    private func setUsage(_ next: ClaudeUsage?) {
+        updateStale(next)
         guard next != usage else { return }
         usage = next
         saveUsage()
@@ -684,6 +860,61 @@ final class ClaudeModule: ZModule {
         if isSelfTest { print("  mức dùng: 5h \(next?.fiveHour?.percent ?? -1)% 7d \(next?.sevenDay?.percent ?? -1)%") }
         #endif
         scheduleReset()
+    }
+
+    /// Tự hỏi hạn mức nếu bật. Chỉ gọi theo sự kiện (mở app, mở notch, Claude vừa xong một lượt), tối đa 2 phút một lần.
+    func fetchUsage(force: Bool = false) {
+        guard active, liveUsage, !liveBlocked, !fetching, !isSelfTest else { return }
+        if !force, let last = lastFetch, Date().timeIntervalSince(last) < 120 { return }
+        fetching = true
+        lastFetch = Date()
+        let account = currentAccount
+        ClaudeLiveUsage.fetch { [weak self] result in
+            guard let self else { return }
+            self.fetching = false
+            guard self.active, self.liveUsage else { return }
+            switch result {
+            case .success(let bytes):
+                guard let fresh = ClaudeUsage.fromResponse(bytes, fetchedAt: Date().timeIntervalSince1970, account: account)
+                else { self.liveUsageError = L("Anthropic trả về dữ liệu lạ.", "Anthropic sent back unexpected data."); return }
+                // Đổi tài khoản trong lúc đang hỏi: bỏ kết quả.
+                guard account == self.currentAccount else { return }
+                self.liveUsageError = nil
+                self.setUsage(ClaudeUsage.newer(self.usage, fresh).resetting(now: Date().timeIntervalSince1970).usage)
+            case .failure(let f):
+                if f == .noLogin || f == .denied { self.liveBlocked = true }
+                self.liveUsageError = Self.describe(f)
+            }
+        }
+    }
+
+    private static func describe(_ f: ClaudeLiveUsage.Failure) -> String {
+        switch f {
+        case .noLogin: L("Không thấy đăng nhập Claude Code trong Keychain. Đăng nhập Claude Code rồi bật lại mục này.",
+                         "No Claude Code sign-in found in the Keychain. Sign in to Claude Code, then turn this back on.")
+        case .denied: L("macOS không cho đọc Keychain (bạn đã từ chối?). Tắt rồi bật lại mục này để được hỏi lại.",
+                        "macOS didn't allow reading the Keychain (denied?). Turn this off and on to be asked again.")
+        case .expired: L("Đăng nhập của Claude Code đã hết hạn. Mở Claude Code là nó tự làm mới; zMac không tự làm mới.",
+                         "Claude Code's sign-in has expired. Open Claude Code and it renews itself; zMac never renews it.")
+        case .rejected: L("Anthropic từ chối token (có thể vừa hết hạn). Mở Claude Code để nó làm mới.",
+                          "Anthropic rejected the token (it may have just expired). Open Claude Code to renew it.")
+        case .network: L("Không hỏi được Anthropic (mạng?). Lần sau sẽ thử lại.",
+                         "Couldn't reach Anthropic (network?). It will try again next time.")
+        }
+    }
+
+    /// Số cũ hơn 30 phút thì notch hiện mờ. Hẹn đúng một lần tại mốc 30 phút (không lặp).
+    private func updateStale(_ u: ClaudeUsage? = nil) {
+        staleWork?.cancel()
+        staleWork = nil
+        let current = u ?? usage
+        let now = Date().timeIntervalSince1970
+        let stale = current?.isStale(now: now) ?? false
+        if usageStale != stale { usageStale = stale }
+        guard !stale, let at = current?.fetchedAt else { return }
+        let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.updateStale() } }
+        staleWork = w
+        DispatchQueue.main.asyncAfter(wallDeadline: .now() + max(at + ClaudeUsage.staleAfter - now, 1), execute: w)
     }
 
     /// `--claude-selftest` không được ghi vào defaults.
@@ -788,6 +1019,26 @@ final class ClaudeModule: ZModule {
     }
 
     func connect() {
+        setWanted(true)
+        install(auto: false)
+    }
+
+    private func setWanted(_ wanted: Bool) {
+        wantsConnection = wanted
+        Pref.set("claude.connected", wanted)
+    }
+
+    /// Đã kết nối mà hook bị cũ / đổi đường dẫn / bị xoá: thêm lại. Gọi lúc chạy và khi settings.json đổi.
+    private func repairIfNeeded() {
+        guard autoReconnect, let path = Self.hookPath, ClaudeHookInstaller.autoRepairAllowed(hookPath: path),
+              let state = hookState else { return }
+        if wantsConnection == nil { setWanted(ClaudeHookInstaller.inferWanted(state)) }
+        guard ClaudeHookInstaller.needsRepair(state, wanted: wantsConnection == true), repairs < 3 else { return }
+        repairs += 1
+        install(auto: true)
+    }
+
+    private func install(auto: Bool) {
         message = nil
         guard let path = Self.hookPath else {
             message = L("Không tìm thấy zmac-claude-hook cạnh app. Hãy build lại bằng ./build.sh.",
@@ -799,8 +1050,11 @@ final class ClaudeModule: ZModule {
                 throw SettingsError.unexpected
             }
             try writeSettings(next)
-            message = L("Đã kết nối. Phiên Claude Code đang mở cần mở lại để nhận hook.",
-                        "Connected. Restart any open Claude Code session to pick up the hook.")
+            message = auto
+                ? L("Đã tự kết nối lại (hook của zMac bị cũ hoặc bị xoá). Phiên Claude Code đang mở cần mở lại để nhận hook.",
+                    "Reconnected automatically (zMac's hook was out of date or removed). Restart any open Claude Code session to pick up the hook.")
+                : L("Đã kết nối. Phiên Claude Code đang mở cần mở lại để nhận hook.",
+                    "Connected. Restart any open Claude Code session to pick up the hook.")
         } catch {
             message = L("Không sửa được ~/.claude/settings.json (file không phải JSON hợp lệ?). File chưa bị đổi.",
                         "Couldn't update ~/.claude/settings.json (not valid JSON?). The file was left unchanged.")
@@ -809,6 +1063,7 @@ final class ClaudeModule: ZModule {
     }
 
     func disconnect() {
+        setWanted(false)
         message = nil
         do {
             let current = try readSettings()
@@ -820,6 +1075,40 @@ final class ClaudeModule: ZModule {
                         "Couldn't update ~/.claude/settings.json. The file was left unchanged.")
         }
         refreshHookState()
+    }
+
+    /// Theo dõi settings.json bằng kqueue như ~/.claude.json: đổi thì đọc lại trạng thái và tự nối lại nếu cần.
+    /// Lần ghi của chính zMac cũng tới đây, nhưng lúc đó trạng thái đã đúng nên không ghi thêm.
+    private func watchSettings() {
+        settingsSource?.cancel()
+        settingsSource = nil
+        let fd = open(Self.settingsURL.path, O_EVTONLY)
+        guard fd >= 0 else { return }
+        let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .extend, .delete, .rename],
+                                                            queue: .main)
+        src.setEventHandler { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, let events = self.settingsSource?.data else { return }
+                if !events.isDisjoint(with: [.delete, .rename]) {
+                    self.settingsSource?.cancel()
+                    self.settingsSource = nil
+                }
+                self.settingsWork?.cancel()
+                let w = DispatchWorkItem { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self else { return }
+                        if self.settingsSource == nil { self.watchSettings() }
+                        self.refreshHookState()
+                        self.repairIfNeeded()
+                    }
+                }
+                self.settingsWork = w
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: w)
+            }
+        }
+        src.setCancelHandler { close(fd) }
+        src.resume()
+        settingsSource = src
     }
 
     /// `zMac --diagnose`: hạn mức đọc được từ ~/.claude.json (chỉ đọc).
@@ -889,6 +1178,11 @@ final class ClaudeModule: ZModule {
                 Text(L("Kết nối thêm một hook PermissionRequest vào ~/.claude/settings.json (bản cũ được sao lưu thành settings.json.zmac-backup). Gỡ kết nối chỉ bỏ đúng hook đó. Khi zMac không chạy, hook tự bỏ qua và Claude Code hỏi trong terminal như thường.",
                        "Connecting adds one PermissionRequest hook to ~/.claude/settings.json (the old file is backed up as settings.json.zmac-backup). Disconnecting removes only that hook. When zMac isn't running the hook steps aside and Claude Code asks in the terminal as usual."))
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Tự kết nối lại", "Reconnect automatically"),
+                       isOn: Binding(get: { self.autoReconnect }, set: { self.autoReconnect = $0 }))
+                Text(L("Đã kết nối mà hook của zMac trong settings.json bị cũ (sau khi cập nhật zMac), đổi chỗ cài (ví dụ chuyển sang bản Homebrew) hay bị công cụ khác xoá thì zMac tự thêm lại. Bấm Gỡ kết nối thì zMac thôi.",
+                       "Once connected, if zMac's hook in settings.json goes out of date (after a zMac update), moves (say, switching to the Homebrew build) or gets removed by another tool, zMac adds it back. Disconnect and it stops."))
+                    .font(.caption).foregroundStyle(.secondary)
                 if !otherHooks.isEmpty {
                     Label(L("Hook duyệt quyền khác cũng đang bật: \(otherHooks.joined(separator: ", ")). Mỗi yêu cầu sẽ hiện ở cả hai app; gỡ hook kia nếu không còn dùng app đó.",
                             "Another approval hook is also set up: \(otherHooks.joined(separator: ", ")). Every request will show in both apps; remove that hook if you no longer use the other app."),
@@ -902,8 +1196,10 @@ final class ClaudeModule: ZModule {
                     if let w = u.fiveHour { LabeledContent(L("5 giờ", "5 hours"), value: Self.describe(w)) }
                     if let w = u.sevenDay { LabeledContent(L("7 ngày", "7 days"), value: Self.describe(w)) }
                     if let at = u.fetchedAt {
-                        LabeledContent(L("Claude Code cập nhật", "Updated by Claude Code"),
-                                       value: Self.clock(Date(timeIntervalSince1970: at)))
+                        LabeledContent(u.live == true ? L("zMac hỏi Anthropic lúc", "Fetched from Anthropic")
+                                                      : L("Claude Code cập nhật", "Updated by Claude Code"),
+                                       value: Self.clock(Date(timeIntervalSince1970: at))
+                                           + (usageStale ? L(" (đã cũ)", " (stale)") : ""))
                     }
                 } else {
                     Text(L("Chưa có số liệu. Claude Code lưu hạn mức sau khi đăng nhập bằng gói Pro hoặc Max.",
@@ -914,9 +1210,18 @@ final class ClaudeModule: ZModule {
                        isOn: Binding(get: { self.showUsage }, set: { self.showUsage = $0 }))
                 Toggle(L("Báo trên notch khi hạn mức đặt lại", "Tell me on the notch when a limit resets"),
                        isOn: Binding(get: { self.resetAlert }, set: { self.resetAlert = $0 }))
-                Text(L("zMac đọc số Claude Code tự lưu trong ~/.claude.json (chạy cả với bản VS Code), không cần mạng hay Keychain. Claude Code làm mới số này theo nhịp riêng nên có thể chậm vài chục phút; dòng \"Claude Code cập nhật\" cho biết số mới đến đâu.",
-                       "zMac reads the numbers Claude Code saves in ~/.claude.json (works with the VS Code extension too), with no network or Keychain access. Claude Code refreshes them on its own schedule, so they can lag by tens of minutes; \"Updated by Claude Code\" tells you how fresh they are."))
+                Text(L("Mặc định zMac đọc số Claude Code tự lưu trong ~/.claude.json (chạy cả với bản VS Code), không cần mạng hay Keychain. Claude Code chỉ làm mới số này khi bạn xem mức dùng, nên số có thể cũ; cũ hơn 30 phút thì notch hiện mờ.",
+                       "By default zMac reads the numbers Claude Code saves in ~/.claude.json (works with the VS Code extension too), with no network or Keychain access. Claude Code only refreshes them when you check your usage, so they can be old; past 30 minutes the notch dims them."))
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Lấy hạn mức trực tiếp từ Anthropic", "Fetch limits straight from Anthropic"),
+                       isOn: Binding(get: { self.liveUsage }, set: { self.liveUsage = $0 }))
+                Text(L("zMac đọc token đăng nhập của Claude Code trong Keychain (macOS hỏi quyền lần đầu, chọn Luôn cho phép) và chỉ gửi nó tới api.anthropic.com để hỏi hạn mức: khi mở app, mở notch và khi Claude làm xong một lượt, tối đa 2 phút một lần. zMac không bao giờ tự làm mới token.",
+                       "zMac reads Claude Code's sign-in token from the Keychain (macOS asks the first time; pick Always Allow) and only sends it to api.anthropic.com to ask for your limits: at launch, when you open the notch and when Claude finishes a turn, at most once every 2 minutes. zMac never renews the token."))
+                    .font(.caption).foregroundStyle(.secondary)
+                if liveUsage, let liveUsageError {
+                    Label(liveUsageError, systemImage: "exclamationmark.triangle")
+                        .font(.caption).foregroundStyle(ZTheme.orange.light)
+                }
             }
             if ModuleManager.shared.module(NotchModule.self)?.canShowClaude != true {
                 Section {
@@ -1225,6 +1530,8 @@ struct FlowLayout: Layout {
 
 struct ClaudeUsageBadge: View {
     let usage: ClaudeUsage
+    /// Số cũ hơn 30 phút: mờ đi, rê chuột thấy giờ lấy số.
+    var stale = false
 
     var body: some View {
         HStack(spacing: 7) {
@@ -1242,7 +1549,15 @@ struct ClaudeUsageBadge: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 3)
         .background(Capsule().fill(.white.opacity(0.08)))
+        .opacity(stale ? 0.45 : 1)
+        .help(stale ? staleHelp : "")
         .fixedSize()
+    }
+
+    private var staleHelp: String {
+        let at = usage.fetchedAt.map { ClaudeModule.clock(Date(timeIntervalSince1970: $0)) } ?? "?"
+        return L("Số từ \(at), đã cũ. Xem mức dùng trong Claude Code hoặc bật \"Lấy hạn mức trực tiếp từ Anthropic\" để có số mới.",
+                 "Numbers from \(at), out of date. Check usage in Claude Code, or turn on \"Fetch limits straight from Anthropic\".")
     }
 
     private func item(_ label: String, _ w: ClaudeUsage.Window) -> some View {

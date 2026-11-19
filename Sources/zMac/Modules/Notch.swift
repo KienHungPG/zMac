@@ -52,6 +52,11 @@ final class NotchModule: ZModule {
     var liveActivity = Pref.bool("notch.liveActivity", true) {
         didSet { Pref.set("notch.liveActivity", liveActivity); if !open { updateLayout() } }
     }
+    /// Không có bài đang phát mà một app vẫn phát âm thanh (họp Meet, Zoom, video không báo "Đang phát"): hiện icon app
+    /// kèm sóng lúc thu gọn. Cần module Âm thanh (nó biết app nào đang phát ra loa).
+    var audioActivity = Pref.bool("notch.audioActivity", true) {
+        didSet { Pref.set("notch.audioActivity", audioActivity); updateAudioActivity() }
+    }
     /// Hiện hai bên notch, đối xứng (mặc định): trái nhạc, phải thú cưng. Tắt thì chỉ phình sang trái để không che
     /// icon menu bar sát notch.
     var wingsBothSides = Pref.bool("notch.wingsBothSides", true) {
@@ -65,11 +70,26 @@ final class NotchModule: ZModule {
         didSet {
             Pref.set("notch.lyrics", lyricsEnabled)
             if !lyricsEnabled { lyrics.clear() }
+            lockScreen?.update()   // trình phát đầy đủ cao thêm phần lời
         }
+    }
+    /// Trình phát trên màn hình khoá. Tắt sẵn: dùng API riêng (SkyLight), và ai nhìn màn hình khoá cũng thấy bài.
+    var lockScreenStyle = LockScreenStyle(rawValue: Pref.string("notch.lockScreen", "off")) ?? .off {
+        didSet { Pref.set("notch.lockScreen", lockScreenStyle.rawValue); syncLockScreen() }
+    }
+    var lockScreenWhen = LockScreenWhen(rawValue: Pref.string("notch.lockScreenWhen", "playing")) ?? .playing {
+        didSet { Pref.set("notch.lockScreenWhen", lockScreenWhen.rawValue); lockScreen?.update() }
     }
     /// Đang xem lời thay cho trình phát (nút Lời).
     var showLyrics = Pref.bool("notch.showLyrics", false) {
         didSet { Pref.set("notch.showLyrics", showLyrics) }
+    }
+    /// Ảnh bìa Spotify từ i.scdn.co khi macOS còn giữ trình phát khác. Tắt sẵn vì phải gọi mạng.
+    var spotifyArtwork = Pref.bool("notch.spotifyArtwork", false) {
+        didSet {
+            Pref.set("notch.spotifyArtwork", spotifyArtwork)
+            nowPlaying.fetchesSpotifyArtwork = spotifyArtwork
+        }
     }
     /// Bấm vào notch mới mở (thay vì rê chuột vào).
     var openOnClick = Pref.bool("notch.openOnClick", false) {
@@ -91,6 +111,11 @@ final class NotchModule: ZModule {
     /// Thẻ nhắc thả xuống dưới notch (pin yếu).
     private(set) var alert: NotchAlert?
     private(set) var track: NowPlayingTrack?
+    /// App đang phát âm thanh (không phải bài "Đang phát") để hiện sóng lúc thu gọn.
+    private(set) var audioActivityApp: String?
+    /// App đang phát ra loa → lúc bắt đầu phát (giây kể từ 1970), do module Âm thanh báo.
+    @ObservationIgnored private var audioApps: [String: Double] = [:]
+    @ObservationIgnored private var audioActivityWork: DispatchWorkItem?
     private(set) var shelf: [URL] = []
     private(set) var battery: BatterySnapshot?
     private(set) var dropTargeted = false
@@ -122,6 +147,9 @@ final class NotchModule: ZModule {
     @ObservationIgnored private var lastExternal: Bool?
     @ObservationIgnored private let nowPlaying = NowPlayingMonitor()
     @ObservationIgnored let lyrics = LyricsStore()
+    /// Chỉ có khi tuỳ chọn màn hình khoá khác Tắt và module đang chạy.
+    @ObservationIgnored private var lockScreen: LockScreenPlayer?
+    @ObservationIgnored private var started = false
 
     init() {}
 
@@ -131,7 +159,9 @@ final class NotchModule: ZModule {
         lastExternal = battery?.externalConnected
         lastPercent = battery?.percent
         nowPlaying.onChange = { [weak self] t in self?.trackChanged(t) }
+        nowPlaying.fetchesSpotifyArtwork = spotifyArtwork
         nowPlaying.start()
+        audioAppsChanged(ModuleManager.shared.module(AudioModule.self)?.activeApps ?? [])
         startPower()
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
@@ -140,9 +170,14 @@ final class NotchModule: ZModule {
         }
         rebuild()
         if mediaKeysHUD { startMediaKeys(prompt: false) }
+        started = true
+        syncLockScreen()
     }
 
     func stop() {
+        started = false
+        lockScreen?.stop()
+        lockScreen = nil
         stopMediaKeys()
         ModuleManager.shared.module(ClaudeModule.self)?.passAll()
         claudeAttention = false
@@ -151,8 +186,10 @@ final class NotchModule: ZModule {
         stopPower()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
-        for w in [expandWork, collapseWork, resizeWork, hudWork, alertWork] { w?.cancel() }
-        expandWork = nil; collapseWork = nil; resizeWork = nil; hudWork = nil; alertWork = nil
+        for w in [expandWork, collapseWork, resizeWork, hudWork, alertWork, audioActivityWork] { w?.cancel() }
+        expandWork = nil; collapseWork = nil; resizeWork = nil; hudWork = nil; alertWork = nil; audioActivityWork = nil
+        audioApps = [:]
+        audioActivityApp = nil
         alert = nil
         closePanel()
         NotchIcons.cache.removeAll()
@@ -165,7 +202,15 @@ final class NotchModule: ZModule {
     // MARK: Kích thước
 
     var wingWidth: CGFloat { notchHeight + 14 }
-    var showsLiveActivity: Bool { liveActivity && track?.isPlaying == true }
+    var showsLiveActivity: Bool { liveActivity && liveTrack != nil }
+
+    /// Thứ hiện lúc thu gọn: bài đang phát, hoặc app đang phát âm thanh (icon app thay ảnh bìa, không có tên bài).
+    var liveTrack: NowPlayingTrack? {
+        if let track, track.isPlaying { return track }
+        guard let app = audioActivityApp else { return nil }
+        return NowPlayingTrack(bundleID: app, title: "", artist: "", album: "", isPlaying: true, duration: nil,
+                               position: nil, updatedAt: .distantPast, artwork: nil)
+    }
 
     /// Bên trái đủ chỗ cho cả hai thứ (ảnh bìa + sóng nhạc, hoặc icon + chữ HUD).
     var leftWingWidth: CGFloat { 2 * wingWidth - 14 }
@@ -426,6 +471,9 @@ final class NotchModule: ZModule {
         open = value
         if value {
             battery = BatteryReader.snapshot()
+            // Đang nhìn notch: hỏi lại hạn mức Claude nếu bật (tối đa 2 phút một lần), đọc lại pin thiết bị.
+            ModuleManager.shared.module(ClaudeModule.self)?.fetchUsage()
+            ModuleManager.shared.module(DevicesModule.self)?.notchOpened()
             // Mở notch là đã thấy thẻ nhắc: thu lại thì không thả xuống nữa.
             alertWork?.cancel()
             alert = nil
@@ -522,7 +570,49 @@ final class NotchModule: ZModule {
             ModuleManager.shared.module(PetModule.self)?.poke()
         }
         track = t
+        updateAudioActivity(layout: false)
         if !open && wasLive != showsLiveActivity { updateLayout() }
+        lockScreen?.update()
+    }
+
+    /// Tạo / gỡ trình phát màn hình khoá theo tuỳ chọn. Tắt thì không nghe sự kiện khoá máy nào.
+    private func syncLockScreen() {
+        guard started, lockScreenStyle != .off else {
+            lockScreen?.stop()
+            lockScreen = nil
+            return
+        }
+        if lockScreen == nil {
+            let p = LockScreenPlayer(model: self)
+            p.start()
+            lockScreen = p
+        }
+        lockScreen?.update()
+    }
+
+    // MARK: App đang phát âm thanh (họp, video không báo "Đang phát")
+
+    /// Module Âm thanh báo tập app đang phát ra loa (theo sự kiện CoreAudio).
+    func audioAppsChanged(_ active: Set<String>) {
+        let now = Date().timeIntervalSince1970
+        audioApps = Dictionary(uniqueKeysWithValues: active.map { ($0, audioApps[$0] ?? now) })
+        updateAudioActivity()
+    }
+
+    private func updateAudioActivity(layout: Bool = true) {
+        audioActivityWork?.cancel()
+        audioActivityWork = nil
+        let wasLive = showsLiveActivity
+        let now = Date().timeIntervalSince1970
+        let pick = AudioActivity.pick(audioApps, musicPlaying: track?.isPlaying == true, enabled: audioActivity, now: now)
+        if audioActivityApp != pick.app { audioActivityApp = pick.app }
+        // Phải phát đủ lâu mới hiện: hẹn xét lại đúng một lần (không lặp).
+        if let at = pick.recheck {
+            let w = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.updateAudioActivity() } }
+            audioActivityWork = w
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(at - now, 0.1), execute: w)
+        }
+        if layout && !open && wasLive != showsLiveActivity { updateLayout() }
     }
 
     func playPause() {
@@ -687,6 +777,15 @@ final class NotchModule: ZModule {
                        isOn: Binding(get: { self.showOnNonNotch }, set: { self.showOnNonNotch = $0 }))
                 Toggle(L("Hiện app đang phát nhạc cạnh notch", "Show the playing app beside the notch"),
                        isOn: Binding(get: { self.liveActivity }, set: { self.liveActivity = $0 }))
+                Toggle(L("Hiện cả app đang phát âm thanh (họp Meet, Zoom, video)", "Also show apps playing sound (Meet, Zoom, videos)"),
+                       isOn: Binding(get: { self.audioActivity }, set: { self.audioActivity = $0 }))
+                    .disabled(!liveActivity)
+                Text(ModuleManager.shared.module(AudioModule.self) == nil
+                     ? L("Cần bật module Âm thanh: nó cho biết app nào đang phát ra loa.",
+                         "Needs the Sound feature on: it knows which app is playing through the speakers.")
+                     : L("Khi không có bài nào đang phát mà một app phát âm thanh liên tục vài giây (cuộc họp trên trình duyệt, Zoom, video không báo cho macOS), notch hiện icon app đó kèm sóng.",
+                         "When nothing is playing but an app keeps making sound for a few seconds (a browser meeting, Zoom, a video that doesn't tell macOS), the notch shows that app's icon with the bars."))
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker(L("Lúc thu gọn, notch phình ra", "When closed, the notch extends"),
                        selection: Binding(get: { self.wingsBothSides }, set: { self.wingsBothSides = $0 })) {
                     Text(L("Hai bên, cân giữa", "Both sides, centered")).tag(true)
@@ -761,8 +860,32 @@ final class NotchModule: ZModule {
                 Text(L("Lời lấy từ lrclib.net (miễn phí, mã nguồn mở). zMac chỉ gửi tên bài, ca sĩ, album và độ dài, và chỉ khi đang xem lời. Lời có mốc thời gian sẽ chạy theo nhạc.",
                        "Lyrics come from lrclib.net (free and open source). zMac only sends the title, artist, album and length, and only while lyrics are showing. Time-synced lyrics follow the music."))
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle(L("Ảnh bìa Spotify từ mạng", "Spotify album art from the network"),
+                       isOn: Binding(get: { self.spotifyArtwork }, set: { self.spotifyArtwork = $0 }))
+                Text(L("Khi macOS còn giữ trình phát khác (ví dụ một tab trình duyệt đã dừng) trong lúc Spotify đang phát, notch không nhận được ảnh bìa từ macOS. Bật mục này thì zMac hỏi Spotify địa chỉ ảnh và tải ảnh từ i.scdn.co, máy chủ ảnh của Spotify. Tắt thì hiện icon Spotify.",
+                       "When macOS is still holding on to another player (say, a paused browser tab) while Spotify plays, the notch gets no album art from macOS. Turn this on and zMac asks Spotify for the art link and downloads it from i.scdn.co, Spotify's image server. Off shows the Spotify icon."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
+            lockScreenSettings
         }
+    }
+}
+
+/// Chọn app đang phát âm thanh để hiện lúc thu gọn (hàm thuần, có test).
+enum AudioActivity {
+    /// Phát liên tục ít nhất chừng này giây mới hiện: tiếng "ting" thông báo không làm notch nháy.
+    static let hold: Double = 3
+    /// Đã có phần "Đang phát" lo (kể cả lúc tạm dừng mà vẫn giữ luồng âm thanh).
+    static let ignored: Set<String> = ["com.spotify.client", "com.apple.Music"]
+
+    /// app: app phát lâu nhất đã đủ `hold` giây. recheck: lúc xét lại nếu có app chưa đủ lâu.
+    static func pick(_ apps: [String: Double], musicPlaying: Bool, enabled: Bool, now: Double)
+        -> (app: String?, recheck: Double?) {
+        guard enabled, !musicPlaying else { return (nil, nil) }
+        let candidates = apps.filter { !ignored.contains($0.key) }
+        let ready = candidates.filter { now - $0.value >= hold }
+        if let first = ready.min(by: { ($0.value, $0.key) < ($1.value, $1.key) }) { return (first.key, nil) }
+        return (nil, candidates.values.min().map { $0 + hold })
     }
 }
 
